@@ -29,10 +29,12 @@ Function Test-DeviceDrivers{
 
     #For formatting:
     $result = @{Expression = {$_.Name}; Label = 'Device Name'},
+              @{Expression = {$_.DeviceID}; Label = 'Device ID'},
               @{Expression = {$_.ConfigManagerErrorCode} ; Label = 'Status Code' }
 
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
-    Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Format-Table $result -AutoSize
+    #Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Format-Table $result -AutoSize
+    Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Format-Table $result -AutoSize
 
 }#End Test-Drivers
 Function Set-Volume{
@@ -100,6 +102,7 @@ Function Expand-Drives{
         $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
     }
 }#End Expand-Drives
+
 Function Start-Video{
 }#End Start-Video
 Function Invoke-CCleaner{
