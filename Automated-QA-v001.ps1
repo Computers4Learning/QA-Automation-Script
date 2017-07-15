@@ -14,10 +14,17 @@ Written By Mitchell Beare and Chad Gay
 #Global Variable Declarations
 
 #Function Declarations
-#Function Declarationsd
 Function Get-Software($app) {
 
-Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table –AutoSize
+$64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table –AutoSize
+
+ if ($64bit -eq $null){
+    $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table –AutoSize
+    $32bit
+ } else {
+    $64bit
+ }
+
 #Get-WmiObject -Class Win32_Product -ComputerName .| Select-Object name,version | Where-Object -FilterScript {$_.Name -like "*$app*"} | Format-List -Property *
 
 }#End Get-Software
