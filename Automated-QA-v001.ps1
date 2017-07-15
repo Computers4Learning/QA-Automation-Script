@@ -38,7 +38,7 @@ Function Test-DeviceDrivers{
 Function Set-AudioVolume{
     Param([double]$volume)
     
-Add-Type -TypeDefinition @'
+  Add-Type -TypeDefinition @'
 using System.Runtime.InteropServices;
 
 [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -87,7 +87,39 @@ public class Audio {
   [Audio]::Mute = $false  # Set to $false to un-mute
 }#End Set-Volume
 Function Test-Speakers{
-
+  Read-Host 'Audio is about to be tested press anything to continue:'
+  [console]::beep(440,500)       
+  [console]::beep(440,500) 
+  [console]::beep(440,500)        
+  [console]::beep(349,350)        
+  [console]::beep(523,150)        
+  [console]::beep(440,500)        
+  [console]::beep(349,350)        
+  [console]::beep(523,150)        
+  [console]::beep(440,1000) 
+  [console]::beep(659,500)        
+  [console]::beep(659,500)        
+  [console]::beep(659,500)        
+  [console]::beep(698,350)        
+  [console]::beep(523,150)        
+  [console]::beep(415,500)        
+  [console]::beep(349,350)        
+  [console]::beep(523,150)        
+  [console]::beep(440,1000)
+  $validresponse = $false
+  Do{
+    $audioresponse = Read-Host 'Were beeps heard Y/N'
+    if($audioresponse -eq 'y' -or $audioresponse -eq 'Y'){
+      $validresponse = $true
+      Write-Verbose 'Audio Test Successful'
+    }elseif($audioresponse -eq 'n' -or $audioresponse -eq 'N'){
+      $validresponse = $true
+      Write-Verbose 'Audio Test Failed'
+      #Feature write failure to report
+    }else{
+      $audioresponse = Write-Host 'Invalid Input please enter Y for yes N for no'
+    }
+  }While($validresponse -eq $false)
 }#End Test-Speakers
 Function Expand-Drives{
     $drives = Get-PSDrive -PSProvider FileSystem | Select-Object Name
