@@ -11,13 +11,12 @@ Written By Mitchell Beare and Chad Gay
 #Global Variable Declarations
 
 #Function Declarations
-<<<<<<< HEAD
 Function Get-Software{
     param([string]$app)
     Write-Verbose "Checking 64bit registry for $app."
     $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table -AutoSize
     if ($64bit -eq $null){
-    Write-Verbose "Checking 32bit registry for $app."
+      Write-Verbose "Checking 32bit registry for $app."
         $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table -AutoSize
         $32bit
     }elseif($32bit -eq $null) {
@@ -25,20 +24,7 @@ Function Get-Software{
     }else{
         $64bit
     }
-=======
-Function Get-Software($app) {
-
-    $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table –AutoSize
-
-     if ($64bit -eq $null){
-        $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table –AutoSize
-        $32bit
-     } else {
-        $64bit
-     }
-
->>>>>>> 23d270b1e8486ea04afd686d98af737423ddd385
-}#End Get-Software
+}
 Function Test-DeviceDrivers{
 
     #For formatting:
