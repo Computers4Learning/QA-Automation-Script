@@ -129,12 +129,22 @@ Get-Software 'VLC Player'
 Get-Software 'Panda'
 
 Write-Verbose 'Setting Volume to maximum and testing'
+<<<<<<< HEAD
 if(Set-Volume '100' -eq $true){
     Test-Speakers
 }else{
     #Give an error to report
 }
+=======
+Set-AudioVolume '0.8'
+Test-Speakers
+Start-Video
+Invoke-CCleaner
+>>>>>>> 17eb6666985f7e4f3807d98f4ca355917973c5b0
 <#
 start-process $msbuild $arguments 
 
 #>
+
+Read-Host 'QA Complete Computer will now Shutdown.'
+Stop-Computer -Force
