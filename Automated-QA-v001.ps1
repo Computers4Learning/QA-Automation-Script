@@ -21,10 +21,19 @@ Sounds like Chad's Job
 #>
 
 }#End Get-Software
-
-Function Test-Drivers{
+Function Test-DeviceDrivers{
 
 }#End Test-Drivers
+Function Set-Volume{
 
-
+}#End Set-Volume
+Function Expand-Drives{
+}#End Expand-Drives
+Function Start-Video{
+}#End Start-Video
 #Main Code
+
+
+<#
+
+#>
