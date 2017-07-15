@@ -140,7 +140,10 @@ Function Expand-Drives{
 Function Start-Video{
 }#End Start-Video
 Function Invoke-CCleaner{
-}#End Invoke-CCleanerx
+  Write-Verbose 'Running CCleaner'
+  Start-Process CClearner.exe -ArgumentList /AUTO
+  #Feature write to report
+}#End Invoke-CCleaner
 #Main Code
 
 Write-Verbose 'Retrieving drives and expanding.'
@@ -155,6 +158,8 @@ Get-Software 'Panda'
 Write-Verbose 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Test-Speakers
+
+Invoke-CCleaner
 <#
     start-process $msbuild $arguments 
 
