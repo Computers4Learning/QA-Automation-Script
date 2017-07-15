@@ -28,8 +28,8 @@ Function Get-Software{
 Function Test-DeviceDrivers{
 
     #For formatting:
-    $result = @{Expression = {$_.Name}; Label = "Device Name"},
-              @{Expression = {$_.ConfigManagerErrorCode} ; Label = "Status Code" }
+    $result = @{Expression = {$_.Name}; Label = 'Device Name'},
+              @{Expression = {$_.ConfigManagerErrorCode} ; Label = 'Status Code' }
 
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
     Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Format-Table $result -AutoSize
@@ -92,12 +92,12 @@ Function Expand-Drives{
          if($driveSize = $maxSize){
             Write-Verbose "$drive Drive is already at maximum size"
         }Else{
-            Resize-Partition -DriveLetter $drive -Size $MaxSize
+            Resize-Partition -DriveLetter $drive -Size $maxSize
             Write-Verbose "Successfully expanded $drive Drive."
         }
-        $MaxSize = $MaxSize/1024/1024/1024
-        $MaxSize = [Math]::Round($MaxSize)
-        $MaxSize = "HDD Size $mazsize(GB): " + $MaxSize
+        $maxSize = $maxSize/1024/1024/1024
+        $maxSize = [Math]::Round($maxSize)
+        $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
     }
 }#End Expand-Drives
 Function Start-Video{
