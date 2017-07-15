@@ -158,9 +158,12 @@ Get-Software 'Panda'
 Write-Verbose 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Test-Speakers
-
+Start-Video
 Invoke-CCleaner
 <#
     start-process $msbuild $arguments 
 
 #>
+
+Read-Host 'QA Complete Computer will now Shutdown.'
+Stop-Computer -Force
