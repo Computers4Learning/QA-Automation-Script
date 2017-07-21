@@ -1,11 +1,11 @@
 <#
-Beta C4L QA Script
+    Beta C4L QA Script
 
-The purpose of this script is to automate the process of quality checking 
-refurbished machines on the computers 4 learning project.
+    The purpose of this script is to automate the process of quality checking 
+    refurbished machines on the computers 4 learning project.
 
-Written By Mitchell Beare and Chad Gay
-2017
+    Written By Mitchell Beare and Chad Gay
+    2017
 #>
 
 #Global Variable Declarations
@@ -105,16 +105,18 @@ Function Expand-Drives{
 }#End Expand-Drives
 Function Start-Video($url){
 
-$IE=new-object -com internetexplorer.application
-$IE.navigate2($url)
-$IE.visible=$true
+  $IE=new-object -com internetexplorer.application
+  $IE.navigate2($url)
+  $IE.visible=$true
 
 
 }#End Start-Video
 Function Invoke-CCleaner{
- CCleaner.exe /AUTO
+  CCleaner.exe /AUTO
 }#End Invoke-CCleanerx
+Function Write-Log{
 
+}#End Write-Log
 
 #Main Code
 
