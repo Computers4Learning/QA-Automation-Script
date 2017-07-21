@@ -115,11 +115,13 @@ Function Invoke-CCleaner{
   CCleaner.exe /AUTO
 }#End Invoke-CCleanerx
 Function Write-Log{
-
+  Param([string]$text)
+  Add-Content 'C:\Users\Public\Desktop\QA_Report.txt' "`n$($text)"
+  
 }#End Write-Log
 
 #Main Code
-
+Write-Log("StockNbr:$env:computername")
 Write-Verbose 'Retrieving drives and expanding.'
 Expand-Drives
 Write-Verbose 'Contacting Registry and checking for Software'
