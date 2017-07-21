@@ -9,6 +9,7 @@ Written By Mitchell Beare and Chad Gay
 #>
 
 #Global Variable Declarations
+$url = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
 
 #Function Declarations
 Function Get-Software{
@@ -102,11 +103,6 @@ Function Expand-Drives{
         $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
     }
 }#End Expand-Drives
-
-$url = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
-
-Start-Video($url)
-
 Function Start-Video($url){
 
 $IE=new-object -com internetexplorer.application
@@ -116,35 +112,21 @@ $IE.visible=$true
 
 }#End Start-Video
 Function Invoke-CCleaner{
+
 }#End Invoke-CCleanerx
 #Main Code
 
 Write-Verbose 'Retrieving drives and expanding.'
 Expand-Drives
-
 Write-Verbose 'Contacting Registry and checking for Software'
 Get-Software 'Adobe Reader'
 Get-Software 'Firefox'
 Get-Software 'VLC Player'
 Get-Software 'Panda'
-
 Write-Verbose 'Setting Volume to maximum and testing'
-<<<<<<< HEAD
-if(Set-Volume '100' -eq $true){
-    Test-Speakers
-}else{
-    #Give an error to report
-}
-=======
 Set-AudioVolume '0.8'
 Test-Speakers
-Start-Video
+Start-Video($url)
 Invoke-CCleaner
->>>>>>> 17eb6666985f7e4f3807d98f4ca355917973c5b0
-<#
-start-process $msbuild $arguments 
-
-#>
-
-Read-Host 'QA Complete Computer will now Shutdown.'
-Stop-Computer -Force
+Read-Host 'QA Complete Computer will now Restart.'
+Restart-Computer -Force
