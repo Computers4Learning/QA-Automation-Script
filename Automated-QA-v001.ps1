@@ -9,21 +9,39 @@
 #>
 
 #Global Variable Declarations
-$url = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
 
+ 
 #Function Declarations
-Function Get-Software{
-    param([string]$app)
+Function Get-Software {
+    Param([string]$app)
+
     Write-Verbose "Checking 64bit registry for $app."
-    $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table -AutoSize
+    $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+    Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
+    Format-Table -AutoSize
+
     if ($64bit -eq $null){
       Write-Verbose "Checking 32bit registry for $app."
-        $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | Format-Table -AutoSize
+        $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+        Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
+        Format-Table -AutoSize
+        
+        ## Execute query
         $32bit
+        ## Write to log
+        $string = $32bit | Format-Table -HideTableHeaders | Out-String
+        Write-Log($string)
+
     }elseif($32bit -eq $null) {
-        Write-Error "$app Could not be found."
+        $error = "$app Could not be found."
+        Write-Error $error
+        Write-Log($error)
     }else{
+        ## Execute query
         $64bit
+        ## Write to log
+        $string = $64bit | Format-Table -HideTableHeaders | Out-String
+        Write-Log($string)
     }
 }
 Function Test-DeviceDrivers{
@@ -103,7 +121,10 @@ Function Expand-Drives{
         $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
     }
 }#End Expand-Drives
-Function Start-Video($url){
+Function Start-Video{
+
+  ## URL for video playback test
+  $url = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
 
   $IE=new-object -com internetexplorer.application
   $IE.navigate2($url)
@@ -114,9 +135,32 @@ Function Start-Video($url){
 Function Invoke-CCleaner{
   CCleaner.exe /AUTO
 }#End Invoke-CCleanerx
-Function Write-Log{
+
+Function Create-Log{
+  ## File path for QA_Report
+  $reportFilePath = 'C:\Users\Public\Desktop\QA_Report.txt'
+
+  $today = Get-Date
+
+  ## Delete file if it already exists
+  If (Test-Path $reportFilePath) {
+		Remove-Item $reportFilePath
+  }
+
+  Add-Content $reportFilePath "QA Report For Computer: $env:computername`r`n"
+  Add-Content $reportFilePath "Report Created On: $today`r"
+  Add-Content $reportFilePath "==============================================================================`r`n"
+
+}
+
+Function Write-Log {
   Param([string]$text)
-  Add-Content 'C:\Users\Public\Desktop\QA_Report.txt' "`n$($text)"
+  
+  ## File path for QA_Report
+  $reportFilePath = 'C:\Users\Public\Desktop\QA_Report.txt'
+
+  ##Param([string]$text) 
+  Add-Content $reportFilePath "`n$($text)"
   
 }#End Write-Log
 
