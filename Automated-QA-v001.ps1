@@ -25,23 +25,17 @@ Function Get-Software {
         $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
         Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
         Out-String
-        
         ## Execute query
         $32bit
-        ## Write to log
-        $string = $32bit | Format-Table -HideTableHeaders | Out-String
-        Write-Log($string)
+        Write-Log($32bit)
 
     }elseif($32bit -eq $null) {
-        $error = "$app Could not be found."
-        Write-Error $error
-        Write-Log($error)
+        $missing = "$app Could not be found."
+        Write-Log($missing)
     }else{
         ## Execute query
         $64bit
-        ## Write to log
-        $string = $64bit | Format-Table -HideTableHeaders | Out-String
-        Write-Log($string)
+        Write-Log($64bit)
     }
 }
 Function Test-DeviceDrivers{
@@ -52,9 +46,17 @@ Function Test-DeviceDrivers{
               @{Expression = {$_.ConfigManagerErrorCode} ; Label = 'Status Code' }
 
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
-    #Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Format-Table $result -AutoSize
-    Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Format-Table $result -AutoSize
+    $missingdrivers = Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | 
+    Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Out-String
 
+    if($missingdrivers -eq $null){
+      Write-Log('No Device Drivers are Missing on this machine.')
+    }else{
+      ForEach($missingdrive in $missingdrivers){
+      Write-Log("The drivers were not found for `n $missingdrive")
+    }
+    }
+    #$test= Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Format-Table $result -AutoSize
 }#End Test-Drivers
 Function Set-Volume{
     Param()
@@ -103,13 +105,11 @@ Function Set-Volume{
 }
 '@
 }#End Set-Volume
-Function Test-Speakers{
-}#End Test-Speakers
 Function Expand-Drives{
     $drives = Get-PSDrive -PSProvider FileSystem | Select-Object Name
     foreach($drive in $drives){
-        $maxsize = (Get-PartitionSupportedSize -DriveLetter $drive).sixemax
-        $driveSize = (Get-PartitionSupportedSize -DriveLetter $drive).size
+        $maxsize = (Get-PartitionSupportedSize -DriveLetter $drive.name).sixemax
+        $driveSize = (Get-PartitionSupportedSize -DriveLetter $drive.name).size
          if($driveSize = $maxSize){
             Write-Verbose "$drive Drive is already at maximum size"
         }Else{
@@ -119,6 +119,7 @@ Function Expand-Drives{
         $maxSize = $maxSize/1024/1024/1024
         $maxSize = [Math]::Round($maxSize)
         $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
+        Write-Log($maxsize)
     }
 }#End Expand-Drives
 Function Start-Video{
@@ -129,8 +130,20 @@ Function Start-Video{
   $IE=new-object -com internetexplorer.application
   $IE.navigate2($url)
   $IE.visible=$true
-
-
+  $input = Read-Host 'Was Audio heard Y/N'
+  $check = $false
+  Do{
+    if($input = Y -or $input = y){
+      Write-Log 'Audio is functioning correctly.'
+      $check = $true
+    }Elseif($input = N or $input = n){
+      Write-Log 'Audio failed to be heard please check speakers and audio drivers.'
+      $check = $true
+    }Else{
+      Write-Log 'Invalid input detected'
+    }
+  }While($check = false)
+  
 }#End Start-Video
 Function Create-Log{
   ## File path for QA_Report
@@ -140,7 +153,7 @@ Function Create-Log{
 
   ## Delete file if it already exists
   If (Test-Path $reportFilePath) {
-		Remove-Item $reportFilePath
+    Remove-Item $reportFilePath
   }
 
   Add-Content $reportFilePath "QA Report For Computer: $env:computername`r`n"
