@@ -18,13 +18,13 @@ Function Get-Software {
     Write-Verbose "Checking 64bit registry for $app."
     $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
     Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
-    Format-Table -AutoSize
+    Out-String
 
     if ($64bit -eq $null){
       Write-Verbose "Checking 32bit registry for $app."
         $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
         Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
-        Format-Table -AutoSize
+        Out-String
         
         ## Execute query
         $32bit
@@ -132,13 +132,9 @@ Function Start-Video{
 
 
 }#End Start-Video
-Function Invoke-CCleaner{
-  CCleaner.exe /AUTO
-}#End Invoke-CCleanerx
-
 Function Create-Log{
   ## File path for QA_Report
-  $reportFilePath = 'C:\Users\Public\Desktop\QA_Report.txt'
+  $script:reportFilePath = "$env:Public\Desktop\QA_Report.txt"
 
   $today = Get-Date
 
@@ -150,14 +146,9 @@ Function Create-Log{
   Add-Content $reportFilePath "QA Report For Computer: $env:computername`r`n"
   Add-Content $reportFilePath "Report Created On: $today`r"
   Add-Content $reportFilePath "==============================================================================`r`n"
-
-}
-
+}#End Create-Log
 Function Write-Log {
   Param([string]$text)
-  
-  ## File path for QA_Report
-  $reportFilePath = 'C:\Users\Public\Desktop\QA_Report.txt'
 
   ##Param([string]$text) 
   Add-Content $reportFilePath "`n$($text)"
@@ -165,18 +156,30 @@ Function Write-Log {
 }#End Write-Log
 
 #Main Code
-Write-Log("StockNbr:$env:computername")
+Write-Verbose 'Creating Report Log'
+Create-Log
+
 Write-Verbose 'Retrieving drives and expanding.'
 Expand-Drives
+
 Write-Verbose 'Contacting Registry and checking for Software'
 Get-Software 'Adobe Reader'
 Get-Software 'Firefox'
 Get-Software 'VLC Player'
 Get-Software 'Panda'
+
 Write-Verbose 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Test-Speakers
 Start-Video($url)
-Invoke-CCleaner
+
+Write-Verbose 'Starting CCleaner quietly and r'
+Try{
+    Start-Process CCleaner.exe /AUTO
+    Write-Log('CCleaner has run and cleaned the machine.')
+}Catch{
+    Write-Log ('CCleaner was mot found or failed to launch.')
+
+}
 Read-Host 'QA Complete Computer will now Restart.'
 Restart-Computer -Force
