@@ -14,7 +14,6 @@
 #Function Declarations
 Function Get-Software {
     Param([string]$app)
-
     Write-Verbose "Checking 64bit registry for $app."
     $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
     Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
@@ -26,16 +25,14 @@ Function Get-Software {
         Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
         Out-String
         ## Execute query
-        $32bit
-        Write-Log($32bit)
+        Write-Log $32bit
 
-    }elseif($32bit -eq $null) {
-        $missing = "$app Could not be found."
-        Write-Log($missing)
+    }elseif($32bit -eq $null -and $64bit -eq $null) {
+        Write-Log "$app Could not be found"
     }else{
         ## Execute query
-        $64bit
-        Write-Log($64bit)
+        
+        Write-Log $64bit
     }
 }
 Function Test-DeviceDrivers{
@@ -54,9 +51,8 @@ Function Test-DeviceDrivers{
     }else{
       ForEach($missingdrive in $missingdrivers){
       Write-Log("The drivers were not found for `n $missingdrive")
+      }
     }
-    }
-    #$test= Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | Format-Table $result -AutoSize
 }#End Test-Drivers
 Function Set-Volume{
     Param()
@@ -108,18 +104,18 @@ Function Set-Volume{
 Function Expand-Drives{
     $drives = Get-PSDrive -PSProvider FileSystem | Select-Object Name
     foreach($drive in $drives){
-        $maxsize = (Get-PartitionSupportedSize -DriveLetter $drive.name).sixemax
-        $driveSize = (Get-PartitionSupportedSize -DriveLetter $drive.name).size
-         if($driveSize = $maxSize){
+        $drive = $drive.name
+        $maxsize = (Get-PartitionSupportedSize -DriveLetter $drive).sixemax
+        $drivesize = (Get-PartitionSupportedSize -DriveLetter $drive).size
+         if($drivesize -eq $maxsize){
             Write-Verbose "$drive Drive is already at maximum size"
         }Else{
-            Resize-Partition -DriveLetter $drive -Size $maxSize
+            Resize-Partition -DriveLetter $drive -Size $maxsize
             Write-Verbose "Successfully expanded $drive Drive."
         }
-        $maxSize = $maxSize/1024/1024/1024
-        $maxSize = [Math]::Round($maxSize)
-        $maxSize = "HDD Size $mazsize(GB): " + $MaxSize
-        Write-Log($maxsize)
+        $maxsize = $maxsize/1024/1024/1024
+        $maxsize = [Math]::Round($maxsize)
+        Write-Log "$drive is ($maxsize)GB"
     }
 }#End Expand-Drives
 Function Start-Video{
@@ -133,16 +129,16 @@ Function Start-Video{
   $input = Read-Host 'Was Audio heard Y/N'
   $check = $false
   Do{
-    if($input = Y -or $input = y){
+    if($input -eq 'Y' -or $input -eq 'y'){
       Write-Log 'Audio is functioning correctly.'
       $check = $true
-    }Elseif($input = N or $input = n){
+    }Elseif($input -eq 'N' -or $input -eq 'n'){
       Write-Log 'Audio failed to be heard please check speakers and audio drivers.'
       $check = $true
     }Else{
       Write-Log 'Invalid input detected'
     }
-  }While($check = false)
+  }While($check -eq $false)
   
 }#End Start-Video
 Function Create-Log{
@@ -183,7 +179,6 @@ Get-Software 'Panda'
 
 Write-Verbose 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
-Test-Speakers
 Start-Video($url)
 
 Write-Verbose 'Starting CCleaner quietly and r'
@@ -191,8 +186,14 @@ Try{
     Start-Process CCleaner.exe /AUTO
     Write-Log('CCleaner has run and cleaned the machine.')
 }Catch{
-    Write-Log ('CCleaner was mot found or failed to launch.')
+    Write-Log ('CCleaner was not found or failed to launch.')
 
 }
+
+Write-Verbose 'Waiting for 5 minutes for drivers to install'
+Start-Sleep -s 300
+Write-Verbose 'Checking for Missing Device Drivers'
+Test-DeviceDrivers
+
 Read-Host 'QA Complete Computer will now Restart.'
 Restart-Computer -Force
