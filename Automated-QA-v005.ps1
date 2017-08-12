@@ -160,6 +160,27 @@ Function Get-RAM{
     $ram = [Math]::Round($ram)
     Write-Log "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
+Function Test-Keyboard{
+$teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
+$exit = $false
+Do{
+Write-Output 'Please type the following exactly as it appears:'
+$testinput = Write-Host "$teststring"
+if ($teststring -eq $testinput){
+Write-Output 'Keyboard test was successful continuing'
+Write-Log 'Keyboard test was successful'
+$exit = $true
+}else{
+Write-Output "Keyboard test failed you typed: 'n$testinput"
+$continue = Write-Host "Would you like to try again? Y/N"
+if($continue -eq 'n' -or $continue -eq 'N'){
+$exit = $true
+}else{
+Clear
+}
+}
+}While($exit -eq $false)
+}#End Test-Keyboard
 #Main Code
 Write-Output 'Creating Report Log'
 Create-Log
@@ -176,6 +197,8 @@ Get-Software 'Firefox'
 Get-Software 'VLC Player'
 Get-Software 'Panda'
 
+Write-Output 'Begginning Keyboard Test.'
+Test-Keyboard
 Write-Output 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Start-Video($url)
