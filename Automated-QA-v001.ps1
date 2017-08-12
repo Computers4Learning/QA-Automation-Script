@@ -14,24 +14,22 @@
 #Function Declarations
 Function Get-Software {
     Param([string]$app)
-    Write-Verbose "Checking 64bit registry for $app."
+
+    Write-Output "Checking 64bit registry for $app."
     $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
     Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
     Out-String
 
     if ($64bit -eq $null){
-      Write-Verbose "Checking 32bit registry for $app."
-        $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
-        Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
-        Out-String
-        ## Execute query
-        Write-Log $32bit
+      Write-Output "Checking 32bit registry for $app."
+      $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+      Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
+      Out-String
 
+        Write-Log $32bit
     }elseif($32bit -eq $null -and $64bit -eq $null) {
         Write-Log "$app Could not be found"
     }else{
-        ## Execute query
-        
         Write-Log $64bit
     }
 }
@@ -54,7 +52,7 @@ Function Test-DeviceDrivers{
       }
     }
 }#End Test-Drivers
-Function Set-Volume{
+Function Set-AudioVolume{
     Param()
     Add-Type -TypeDefinition @'
     using System.Runtime.InteropServices;
@@ -102,21 +100,21 @@ Function Set-Volume{
 '@
 }#End Set-Volume
 Function Expand-Drives{
-    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object Name
-    foreach($drive in $drives){
-        $drive = $drive.name
-        $maxsize = (Get-PartitionSupportedSize -DriveLetter $drive).sixemax
-        $drivesize = (Get-PartitionSupportedSize -DriveLetter $drive).size
+    #$drives = Get-PSDrive -PSProvider FileSystem | Select-Object Name
+    #foreach($drive in $drives){
+        $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
+        $drivesize = (Get-PartitionSupportedSize -DriveLetter C).size
          if($drivesize -eq $maxsize){
-            Write-Verbose "$drive Drive is already at maximum size"
+            Write-Output 'C:\ Drive is already at maximum size'
         }Else{
-            Resize-Partition -DriveLetter $drive -Size $maxsize
-            Write-Verbose "Successfully expanded $drive Drive."
+            Write-Output 'C:\ Drive does not currently fill the Harddrive Expanding...'
+            Resize-Partition -DriveLetter C -Size $maxsize
+            Write-Output "Successfully expanded 'C:\' Drive."
         }
         $maxsize = $maxsize/1024/1024/1024
         $maxsize = [Math]::Round($maxsize)
         Write-Log "$drive is ($maxsize)GB"
-    }
+    #}
 }#End Expand-Drives
 Function Start-Video{
 
@@ -158,30 +156,28 @@ Function Create-Log{
 }#End Create-Log
 Function Write-Log {
   Param([string]$text)
-
-  ##Param([string]$text) 
   Add-Content $reportFilePath "`n$($text)"
   
 }#End Write-Log
 
 #Main Code
-Write-Verbose 'Creating Report Log'
+Write-Output 'Creating Report Log'
 Create-Log
 
-Write-Verbose 'Retrieving drives and expanding.'
+Write-Output 'Retrieving drives and expanding.'
 Expand-Drives
 
-Write-Verbose 'Contacting Registry and checking for Software'
+Write-Output 'Contacting Registry and checking for Software'
 Get-Software 'Adobe Reader'
 Get-Software 'Firefox'
 Get-Software 'VLC Player'
 Get-Software 'Panda'
 
-Write-Verbose 'Setting Volume to maximum and testing'
+Write-Output 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Start-Video($url)
 
-Write-Verbose 'Starting CCleaner quietly and r'
+Write-Output 'Starting CCleaner quietly and r'
 Try{
     Start-Process CCleaner.exe /AUTO
     Write-Log('CCleaner has run and cleaned the machine.')
@@ -190,9 +186,9 @@ Try{
 
 }
 
-Write-Verbose 'Waiting for 5 minutes for drivers to install'
+Write-Output 'Waiting for 5 minutes for drivers to install'
 Start-Sleep -s 300
-Write-Verbose 'Checking for Missing Device Drivers'
+Write-Output 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
 
 Read-Host 'QA Complete Computer will now Restart.'

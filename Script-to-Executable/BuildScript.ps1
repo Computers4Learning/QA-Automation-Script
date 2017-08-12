@@ -2,6 +2,6 @@
 #Credit goes to Markus Scholtes for creating ps2exe.ps1 this is just an execution script
 $scriptpath = Split-Path $SCRIPT:MyInvocation.MyCommand.Path -parent
 ls "$scriptpath\Target\*.ps1" | %{
-	."$scriptpath\ps2exe.ps1" "$($_.Fullname)" "$($_.Fullname -replace '.ps1','.exe')" -requireadmin
+	."$scriptpath\ps2exe.ps1" "$($_.Fullname)" "$($_.Fullname -replace '.ps1','.exe')" -requireadmin -Verbose
 }
 $null = Read-Host "Press enter to exit"
