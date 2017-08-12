@@ -16,8 +16,6 @@ Function Get-Software {
     $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
     Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
     Out-String
-
-    $64bit -eq $null
     if ($64bit -eq ''){
       Write-Output "Checking 32bit registry for $app."
       $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
@@ -109,7 +107,7 @@ Function Expand-Drives{
         }
         $maxsize = $maxsize/1024/1024/1024
         $maxsize = [Math]::Round($maxsize)
-        Write-Log 'C:\ is ($maxsize)GB'
+        Write-Log "C:\ is $($maxsize)GB"
 }#End Expand-Drives
 Function Start-Video{
 
@@ -161,25 +159,24 @@ Function Get-RAM{
     Write-Log "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
 Function Test-Keyboard{
-$teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
-$exit = $false
-Do{
-Write-Output 'Please type the following exactly as it appears:'
-$testinput = Write-Host "$teststring"
-if ($teststring -eq $testinput){
-Write-Output 'Keyboard test was successful continuing'
-Write-Log 'Keyboard test was successful'
-$exit = $true
-}else{
-Write-Output "Keyboard test failed you typed: 'n$testinput"
-$continue = Write-Host "Would you like to try again? Y/N"
-if($continue -eq 'n' -or $continue -eq 'N'){
-$exit = $true
-}else{
-Clear
-}
-}
-}While($exit -eq $false)
+  $teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
+  $exit = $false
+  Do{
+    Write-Output 'Please type the following exactly as it appears:'
+    $testinput = Read-Host "$teststring"
+    if ($teststring -eq $testinput){
+      Write-Output 'Keyboard test was successful continuing'
+      Write-Log 'Keyboard test was successful'
+      $exit = $true
+    }else{
+      Write-Output "Keyboard test failed you typed: 'n$testinput"
+      $continue = Write-Host "Would you like to try again? Y/N"
+      if($continue -eq 'n' -or $continue -eq 'N'){
+        $exit = $true
+      }
+    }
+    Clear-Host
+  }While($exit -eq $false)
 }#End Test-Keyboard
 #Main Code
 Write-Output 'Creating Report Log'
