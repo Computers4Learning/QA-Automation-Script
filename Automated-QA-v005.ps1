@@ -17,14 +17,15 @@ Function Get-Software {
     Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
     Out-String
 
-    if ($64bit -eq $null){
+    $64bit -eq $null
+    if ($64bit -eq ''){
       Write-Output "Checking 32bit registry for $app."
       $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
       Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
       Out-String
 
         Write-Log $32bit
-    }elseif($32bit -eq $null -and $64bit -eq $null) {
+    }elseif($32bit -eq '' -and $64bit -eq '') {
         Write-Log "$app Could not be found"
     }else{
         Write-Log $64bit
@@ -38,7 +39,7 @@ Function Test-DeviceDrivers{
               @{Expression = {$_.ConfigManagerErrorCode} ; Label = 'Status Code' }
 
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
-    $missingdrivers = Get-WmiObject -Class Win32_PnpEntity -ComputerName localhost -Namespace Root\CIMV2 | 
+    $missingdrivers = Get-ciminstance -Class Win32_PnpEntity -Namespace Root\CIMV2 | 
     Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Out-String
 
     if($missingdrivers -eq $null){
@@ -98,7 +99,7 @@ Function Set-AudioVolume{
 }#End Set-Volume
 Function Expand-Drives{
         $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
-        $drivesize = (Get-PartitionSupportedSize -DriveLetter C).size
+        $drivesize = (Get-Partition -DriveLetter C).size
          if($drivesize -eq $maxsize){
             Write-Output 'C:\ Drive is already at maximum size'
         }Else{
@@ -154,7 +155,7 @@ Function Write-Log {
   
 }#End Write-Log
 Function Get-RAM{
-    $ram = Get-ciminstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object Sum 
+    $ram = Get-Ciminstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object Sum 
     $ram = $ram.Sum/1024/1024/1024
     $ram = [Math]::Round($ram)
     Write-Log "There is $($ram)GB of RAM installed on this machine `n"
