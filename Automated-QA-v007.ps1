@@ -169,50 +169,49 @@ Function Test-Keyboard{
       Write-Log 'Keyboard test was successful'
       $exit = $true
     }else{
-      Write-Output "Keyboard test failed you typed: 'n$testinput"
+      Write-Output "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host "Would you like to try again? Y/N"
       if($continue -eq 'n' -or $continue -eq 'N'){
+      Write-Log 'Keyboard test failed'
         $exit = $true
       }
     }
     Clear-Host
   }While($exit -eq $false)
 }#End Test-Keyboard
+Function Start-CCleaner {
+  Write-Output 'Starting CCleaner quietly and running'
+  Try{
+    Start-Process CCleaner.exe /AUTO
+    Write-Log('CCleaner has run and cleaned the machine.')
+  }Catch{
+    Write-Log ('CCleaner was not found or failed to launch.')
+
+  }
+}#End Start-CCleaner
+
 #Main Code
 Write-Output 'Creating Report Log'
 Create-Log
-
 Write-Output 'Retrieving drives and expanding.'
 Expand-Drives
-
 Write-Output 'Retrieving Installed Physical Memory'
 Get-RAM
-
 Write-Output 'Contacting Registry and checking for Software'
 Get-Software 'Adobe Reader'
 Get-Software 'Firefox'
 Get-Software 'VLC Player'
 Get-Software 'Panda'
-
 Write-Output 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output 'Setting Volume to maximum and testing'
 Set-AudioVolume '0.8'
 Start-Video($url)
-
-Write-Output 'Starting CCleaner quietly and r'
-Try{
-    Start-Process CCleaner.exe /AUTO
-    Write-Log('CCleaner has run and cleaned the machine.')
-}Catch{
-    Write-Log ('CCleaner was not found or failed to launch.')
-
-}
-
+Start-CCleaner
 Write-Output 'Waiting for 5 minutes for drivers to install'
 Start-Sleep -s 300
 Write-Output 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
-
 Read-Host 'QA Complete Computer will now Restart.'
 Restart-Computer -Force
+#End Main

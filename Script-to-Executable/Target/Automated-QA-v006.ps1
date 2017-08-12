@@ -153,8 +153,8 @@ Function Write-Log {
   
 }#End Write-Log
 Function Get-RAM{
-    $ram = Get-Ciminstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object Sum 
-    $ram = $ram.Sum/1024/1024/1024
+    $ram = Get-Ciminstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+    $ram = $ram/1024/1024/1024
     $ram = [Math]::Round($ram)
     Write-Log "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
@@ -170,7 +170,7 @@ Function Test-Keyboard{
       $exit = $true
     }else{
       Write-Output "Keyboard test failed you typed: 'n$testinput"
-      $continue = Write-Host "Would you like to try again? Y/N"
+      $continue = Read-Host "Would you like to try again? Y/N"
       if($continue -eq 'n' -or $continue -eq 'N'){
         $exit = $true
       }
