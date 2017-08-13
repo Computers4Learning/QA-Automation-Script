@@ -21,9 +21,8 @@ Function Get-Software {
       $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
       Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
       Out-String
-
-        Write-Log $32bit
-    }elseif($32bit -eq '' -and $64bit -eq '') {
+      Write-Log $32bit
+    }elseif($32bit -eq '') {
         Write-Log "$app Could not be found"
     }else{
         Write-Log $64bit
@@ -172,7 +171,7 @@ Function Test-Keyboard{
       Write-Output "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host "Would you like to try again? Y/N"
       if($continue -eq 'n' -or $continue -eq 'N'){
-      Write-Log 'Keyboard test failed'
+        Write-Log 'Keyboard test failed'
         $exit = $true
       }
     }
@@ -190,6 +189,7 @@ Function Start-CCleaner {
   }
 }#End Start-CCleaner
 
+
 #Main Code
 Write-Output 'Creating Report Log'
 Create-Log
@@ -198,9 +198,9 @@ Expand-Drives
 Write-Output 'Retrieving Installed Physical Memory'
 Get-RAM
 Write-Output 'Contacting Registry and checking for Software'
-Get-Software 'Adobe Reader'
+Get-Software 'Adobe Acrobat Reader'
 Get-Software 'Firefox'
-Get-Software 'VLC Player'
+Get-Software 'VLC'
 Get-Software 'Panda'
 Write-Output 'Begginning Keyboard Test.'
 Test-Keyboard
