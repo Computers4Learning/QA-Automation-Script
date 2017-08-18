@@ -27,7 +27,7 @@ Function Get-Software {
     }else{
         Write-Log $64bit
     }
-}
+}#End Get-Software
 Function Test-DeviceDrivers{
 
     #For formatting:
@@ -93,7 +93,7 @@ Function Set-AudioVolume{
     }
 }
 '@
-}#End Set-Volume
+}#End Set-AudioVolume
 Function Expand-Drives{
         $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
         $drivesize = (Get-Partition -DriveLetter C).size
@@ -205,7 +205,8 @@ Get-Software 'Panda'
 Write-Output 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output 'Setting Volume to maximum and testing'
-Set-AudioVolume '0.8'
+[audio]::Mute = $false
+[audio]::Volume = 0.8
 Start-Video($url)
 Start-CCleaner
 Write-Output 'Waiting for 5 minutes for drivers to install'
