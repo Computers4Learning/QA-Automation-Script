@@ -232,6 +232,9 @@ Write-Output -InputObject 'Retrieving drives and expanding.'
 Expand-Drives
 Write-Output -InputObject 'Retrieving Installed Physical Memory'
 Get-RAM
+Write-Output -InputObject 'Configuring OEM Info'
+Set-ManufacturerInfo
+Set-ComputerIcon
 Write-Output -InputObject 'Contacting Registry and checking for Software'
 Get-Software -app 'Adobe Acrobat Reader'
 Get-Software -app 'Firefox'
