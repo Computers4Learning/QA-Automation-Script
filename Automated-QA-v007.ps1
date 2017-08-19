@@ -12,38 +12,32 @@
 Function Get-Software {
     Param([string]$app)
 
-    Write-Output "Checking 64bit registry for $app."
-    $64bit = Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
-    Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
+    Write-Output -InputObject "Checking 64bit registry for $app."
+    $64bit = Get-ItemProperty -Path HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+    Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
     Out-String
     if ($64bit -eq ''){
-      Write-Output "Checking 32bit registry for $app."
-      $32bit = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
-      Select-Object DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
+      Write-Output -InputObject "Checking 32bit registry for $app."
+      $32bit = Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
+      Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
       Out-String
-      Write-Log $32bit
+      Write-Log -text $32bit
     }elseif($32bit -eq '') {
-        Write-Log "$app Could not be found"
+        Write-Log -text "$app Could not be found"
     }else{
-        Write-Log $64bit
+        Write-Log -text $64bit
     }
 }#End Get-Software
 Function Test-DeviceDrivers{
-
-    #For formatting:
-    $result = @{Expression = {$_.Name}; Label = 'Device Name'},
-              @{Expression = {$_.DeviceID}; Label = 'Device ID'},
-              @{Expression = {$_.ConfigManagerErrorCode} ; Label = 'Status Code' }
-
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
     $missingdrivers = Get-ciminstance -Class Win32_PnpEntity -Namespace Root\CIMV2 | 
-    Where-Object {$_.ConfigManagerErrorCode -gt 0 } | Out-String
+    Where-Object {$_.ConfigManagerErrorCode -gt 0 } |Select-Object -Property Name,DeviceID,ConfigManagerErrorCode | Out-String
 
     if($missingdrivers -eq $null){
-      Write-Log('No Device Drivers are Missing on this machine.')
+      Write-Log -text ('No Device Drivers are Missing on this machine.')
     }else{
       ForEach($missingdrive in $missingdrivers){
-      Write-Log("The drivers were not found for `n $missingdrive")
+      Write-Log -text ("The drivers were not found for `n $missingdrive")
       }
     }
 }#End Test-Drivers
@@ -98,80 +92,80 @@ Function Expand-Drives{
         $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
         $drivesize = (Get-Partition -DriveLetter C).size
          if($drivesize -eq $maxsize){
-            Write-Output 'C:\ Drive is already at maximum size'
+            Write-Output -InputObject "$env:HOMEDRIVE\ Drive is already at maximum size"
         }Else{
-            Write-Output 'C:\ Drive does not currently fill the Harddrive Expanding...'
+            Write-Output -InputObject "$env:HOMEDRIVE\ Drive does not currently fill the Harddrive Expanding..."
             Resize-Partition -DriveLetter C -Size $maxsize
-            Write-Output "Successfully expanded 'C:\' Drive."
+            Write-Output -InputObject "Successfully expanded 'C:\' Drive."
         }
         $maxsize = $maxsize/1024/1024/1024
         $maxsize = [Math]::Round($maxsize)
-        Write-Log "C:\ is $($maxsize)GB"
+        Write-Log -text "C:\ is $($maxsize)GB"
 }#End Expand-Drives
 Function Start-Video{
 
   ## URL for video playback test
   $url = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
 
-  $IE=new-object -com internetexplorer.application
+  $IE=new-object -ComObject internetexplorer.application
   $IE.navigate2($url)
   $IE.visible=$true
-  $input = Read-Host 'Was Audio heard Y/N'
+  $input = Read-Host -Prompt 'Was Audio heard Y/N'
   $check = $false
   Do{
     if($input -eq 'Y' -or $input -eq 'y'){
-      Write-Log 'Audio is functioning correctly.'
+      Write-Log -text 'Audio is functioning correctly.'
       $check = $true
     }Elseif($input -eq 'N' -or $input -eq 'n'){
-      Write-Log 'Audio failed to be heard please check speakers and audio drivers.'
+      Write-Log -text 'Audio failed to be heard please check speakers and audio drivers.'
       $check = $true
     }Else{
-      Write-Log 'Invalid input detected'
+      Write-Log -text 'Invalid input detected'
     }
   }While($check -eq $false)
   
 }#End Start-Video
-Function Create-Log{
+Function New-LogFile{
   ## File path for QA_Report
   $script:reportFilePath = "$env:Public\Desktop\QA_Report.txt"
 
   $today = Get-Date
 
   ## Delete file if it already exists
-  If (Test-Path $reportFilePath) {
-    Remove-Item $reportFilePath
+  If (Test-Path -Path $reportFilePath) {
+    Remove-Item -Path $reportFilePath
   }
 
-  Add-Content $reportFilePath "QA Report For Computer: $env:computername`r`n"
-  Add-Content $reportFilePath "Report Created On: $today`r"
-  Add-Content $reportFilePath "==============================================================================`r`n"
-}#End Create-Log
+  Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
+  Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
+  Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
+}#End New-LogFile
 Function Write-Log {
   Param([string]$text)
-  Add-Content $reportFilePath "`n$($text)"
+  Add-Content -Path $reportFilePath -Value "`n$($text)"
   
 }#End Write-Log
 Function Get-RAM{
-    $ram = Get-Ciminstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+    $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
     $ram = $ram/1024/1024/1024
     $ram = [Math]::Round($ram)
-    Write-Log "There is $($ram)GB of RAM installed on this machine `n"
+    Write-Log -text "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
 Function Test-Keyboard{
   $teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
   $exit = $false
   Do{
-    Write-Output 'Please type the following exactly as it appears:'
-    $testinput = Read-Host "$teststring"
+    Write-Output -InputObject 'Please type the following exactly as it appears:'
+    $testinput = Read-Host -Prompt "$teststring"
     if ($teststring -eq $testinput){
-      Write-Output 'Keyboard test was successful continuing'
-      Write-Log 'Keyboard test was successful'
+      Write-Output -InputObject 'Keyboard test was successful continuing'
+      Write-Log -text 'Keyboard test was successful'
       $exit = $true
     }else{
-      Write-Output "Keyboard test failed you typed: `n$testinput"
-      $continue = Read-Host "Would you like to try again? Y/N"
+      Write-Output -InputObject "Keyboard test failed you typed: `n$testinput"
+      $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
-        Write-Log 'Keyboard test failed'
+        Write-Log -text 'Keyboard test failed'
         $exit = $true
       }
     }
@@ -179,20 +173,20 @@ Function Test-Keyboard{
   }While($exit -eq $false)
 }#End Test-Keyboard
 Function Start-CCleaner {
-  Write-Output 'Starting CCleaner quietly and running'
+  Write-Output -InputObject 'Starting CCleaner quietly and running'
   Try{
-    Start-Process CCleaner.exe /AUTO
-    Write-Log('CCleaner has run and cleaned the machine.')
+    Start-Process -FilePath CCleaner.exe -ArgumentList /AUTO
+    Write-Log -text ('CCleaner has run and cleaned the machine.')
   }Catch{
-    Write-Log ('CCleaner was not found or failed to launch.')
+    Write-Log -text ('CCleaner was not found or failed to launch.')
 
   }
 }#End Start-CCleaner
 Function Set-ComputerIcon{
   #Registry key path 
-  $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" 
+  $path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel' 
   #Property name 
-  $name = "{20D04FE0-3AEA-1069-A2D8-08002B30309D}" 
+  $name = '{20D04FE0-3AEA-1069-A2D8-08002B30309D}' 
   #check if the property exists 
   $item = Get-ItemProperty -Path $path -Name $name -ErrorAction SilentlyContinue 
   if($item) 
@@ -203,37 +197,37 @@ Function Set-ComputerIcon{
   Else 
   { 
     #create a new property 
-    New-ItemProperty -Path $path -Name $name -Value 0 -PropertyType DWORD  | Out-Null  
-    RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters 1, True
+    $null = New-ItemProperty -Path $path -Name $name -Value 0 -PropertyType DWORD  
+    & "$env:windir\system32\rundll32.exe" USER32.DLL,UpdatePerUserSystemParameters 1, True
   } 
 }#End Set-ComputerIcon
 
 #Main Code
-Write-Output 'Creating Report Log'
-Create-Log
-Write-Output 'Retrieving drives and expanding.'
+Write-Output -InputObject 'Creating Report Log'
+New-LogFile
+Write-Output -InputObject 'Retrieving drives and expanding.'
 Expand-Drives
-Write-Output 'Retrieving Installed Physical Memory'
+Write-Output -InputObject 'Retrieving Installed Physical Memory'
 Get-RAM
-Write-Output 'Contacting Registry and checking for Software'
-Get-Software 'Adobe Acrobat Reader'
-Get-Software 'Firefox'
-Get-Software 'VLC'
-Get-Software 'Panda'
-Write-Output 'Begginning Keyboard Test.'
+Write-Output -InputObject 'Contacting Registry and checking for Software'
+Get-Software -app 'Adobe Acrobat Reader'
+Get-Software -app 'Firefox'
+Get-Software -app 'VLC'
+Get-Software -app 'Panda'
+Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
-Write-Output 'Setting Volume to maximum and testing'
+Write-Output -InputObject 'Setting Volume to maximum and testing'
 [audio]::Mute = $false
 [audio]::Volume = 0.8
-Start-Video($url)
+Start-Video
 Start-CCleaner
-Write-Output 'Waiting for 5 minutes for drivers to install'
-Start-Sleep -s 300
-Write-Output 'Checking for Missing Device Drivers'
+Write-Output -InputObject 'Waiting for 5 minutes for drivers to install'
+Start-Sleep -Seconds 300
+Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
-Read-Host 'QA Complete Computer will now Restart.'
-Restart-Computer -Force
+Read-Host -Prompt 'QA Complete Computer will now Restart.'
 #End Main
 
 #Self Removal, must always be last line.
-Remove-Item $MyINvocation.InvocationName
+Remove-Item -Path $MyINvocation.InvocationName
+Restart-Computer -Force
