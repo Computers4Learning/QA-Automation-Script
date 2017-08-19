@@ -202,6 +202,29 @@ Function Set-ComputerIcon{
   } 
 }#End Set-ComputerIcon
 
+Function Set-ManufacturerInfo {
+
+    $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation"
+
+    IF(!(Test-Path $registryPath))
+
+      {
+        New-Item -Path $registryPath -Force | Out-Null
+
+        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force 
+        
+      } ELSE {
+
+        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force       
+        }
+} #End ManufacturerInfo
+
 #Main Code
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
