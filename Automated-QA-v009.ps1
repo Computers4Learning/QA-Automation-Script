@@ -41,7 +41,7 @@ Function Test-DeviceDrivers{
       }
     }
 }#End Test-Drivers
-Function Set-AudioVolume{
+Function Connect-AudioControls{
     Param()
     Add-Type -TypeDefinition @'
     using System.Runtime.InteropServices;
@@ -162,6 +162,7 @@ Function Test-Keyboard{
       Write-Log -text 'Keyboard test was successful'
       $exit = $true
     }else{
+      Clear-Host
       Write-Output -InputObject "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
@@ -169,7 +170,6 @@ Function Test-Keyboard{
         $exit = $true
       }
     }
-    Clear-Host
   }While($exit -eq $false)
 }#End Test-Keyboard
 Function Start-CCleaner {
@@ -209,19 +209,19 @@ Function Set-ManufacturerInfo {
     IF(!(Test-Path $registryPath))
 
       {
-        New-Item -Path $registryPath -Force | Out-Null
+        New-Item -Path $registryPath -Force > $null
 
-        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force 
+        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         
       } ELSE {
 
-        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force 
-        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force       
+        New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         }
 } #End ManufacturerInfo
 
@@ -243,11 +243,12 @@ Get-Software -app 'Panda'
 Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output -InputObject 'Setting Volume to maximum and testing'
+Connect-AudioControls
 [audio]::Mute = $false
 [audio]::Volume = 0.8
 Start-Video
 Start-CCleaner
-Write-Output -InputObject 'Waiting for 5 minutes for drivers to install'
+Write-Output -InputObject 'Waiting for 5 minutes for drivers to install, then checking device manager for errors.'
 Start-Sleep -Seconds 300
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
