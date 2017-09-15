@@ -1,5 +1,5 @@
 <#
-    Beta C4L QA Script
+    C4L Quality Assurance Script
 
     The purpose of this script is to automate the process of quality checking 
     refurbished machines on the computers 4 learning project.
@@ -8,7 +8,11 @@
     2017
 #>
 
-#Function Declarations
+#Mark: Iniatialise
+$ErrorActionPreference = 'Inquire'
+$DebugPreference = 'SilentlyContinue'
+
+#Mark: Functions
 Function Get-Software {
     Param([string]$app)
 
@@ -201,7 +205,6 @@ Function Set-ComputerIcon{
     & "$env:windir\system32\rundll32.exe" USER32.DLL,UpdatePerUserSystemParameters 1, True
   } 
 }#End Set-ComputerIcon
-
 Function Set-ManufacturerInfo {
 
     $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation"
@@ -225,7 +228,11 @@ Function Set-ManufacturerInfo {
         }
 } #End ManufacturerInfo
 
-#Main Code
+#Mark: Main
+try{Connect-AudioControls
+}Catch{
+Write-Output 'There was an unkown error connecting to the Audio API.'
+}
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
 Write-Output -InputObject 'Retrieving drives and expanding.'
@@ -243,7 +250,6 @@ Get-Software -app 'Panda'
 Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output -InputObject 'Setting Volume to maximum and testing'
-Connect-AudioControls
 [audio]::Mute = $false
 [audio]::Volume = 0.8
 Start-Video
@@ -253,7 +259,7 @@ Start-Sleep -Seconds 300
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
-#End Main
+
 
 #Self Removal, must always be last line.
 Remove-Item -Path $MyINvocation.InvocationName
