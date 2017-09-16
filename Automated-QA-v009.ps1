@@ -234,28 +234,24 @@ $updatesession = New-Object -ComObject Microsoft.Update.Session
 
 #Call searcher and write it's results to a variable.
 Write-Output "`t Initialising and Checking for Applicable Updates. Please wait ..." -ForeGroundColor "Yellow"
-$Result = $updatesearcher.Search("IsInstalled=0 and Type='Software' and IsHidden=0")
+$result = $updatesearcher.Search("IsInstalled=0 and Type='Software' and IsHidden=0")
 
 #Check that there's something in the update list. If not end. 
-If ($Result.Updates.Count -EQ 0) {
+If ($result.Updates.Count -EQ 0) {
 	Write-Output "`t There are no applicable updates for this computer."
 }
 Else {
-	$ReportFile = $Env:ComputerName + "_Report.txt"
-	If (Test-Path $ReportFile) {
-		Remove-Item $ReportFile
-	}
-	For ($Counter = 0; $Counter -LT $Result.Updates.Count; $Counter++) {
+	For ($Counter = 0; $Counter -LT $result.Updates.Count; $Counter++) {
 		$DisplayCount = $Counter + 1
-    		$Update = $Result.Updates.Item($Counter)
+    		$Update = $result.Updates.Item($Counter)
 		$UpdateTitle = $Update.Title
 	}
 	$Counter = 0
 	$DisplayCount = 0
 	Write-Output "`t Initialising Download of Applicable Updates ..." -ForegroundColor "Yellow"
 	$Downloader = $updatesession.CreateUpdateDownloader()
-	$UpdatesList = $Result.Updates
-	For ($Counter = 0; $Counter -LT $Result.Updates.Count; $Counter++) {
+	$UpdatesList = $result.Updates
+	For ($Counter = 0; $Counter -LT $result.Updates.Count; $Counter++) {
 		$updatecollection.Add($UpdatesList.Item($Counter)) | Out-Null
 		$ShowThis = $UpdatesList.Item($Counter).Title
 		$DisplayCount = $Counter + 1
@@ -266,7 +262,7 @@ Else {
 		Else {
 			Write-Output "`t Download Status: FAILED With Error -- $Error()"
 			$Error.Clear()
-		}	
+		}
 	}
 	$Counter = 0
 	$DisplayCount = 0
