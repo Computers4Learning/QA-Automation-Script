@@ -226,9 +226,70 @@ Function Set-ManufacturerInfo {
         New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force > $null
         New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         }
-} #End ManufacturerInfo
+} #End Set-ManufacturerInfo
+Function Start-WindowsUpdates{
+$updatecollection = New-Object -ComObject Microsoft.Update.UpdateColl
+$updatesearcher = New-Object -ComObject Microsoft.Update.Searcher
+$updatesession = New-Object -ComObject Microsoft.Update.Session
 
+#Call searcher and write it's results to a variable.
+Write-Output "`t Initialising and Checking for Applicable Updates. Please wait ..." -ForeGroundColor "Yellow"
+$Result = $updatesearcher.Search("IsInstalled=0 and Type='Software' and IsHidden=0")
+
+#Check that there's something in the update list. If not end. 
+If ($Result.Updates.Count -EQ 0) {
+	Write-Output "`t There are no applicable updates for this computer."
+}
+Else {
+	$ReportFile = $Env:ComputerName + "_Report.txt"
+	If (Test-Path $ReportFile) {
+		Remove-Item $ReportFile
+	}
+	For ($Counter = 0; $Counter -LT $Result.Updates.Count; $Counter++) {
+		$DisplayCount = $Counter + 1
+    		$Update = $Result.Updates.Item($Counter)
+		$UpdateTitle = $Update.Title
+	}
+	$Counter = 0
+	$DisplayCount = 0
+	Write-Output "`t Initialising Download of Applicable Updates ..." -ForegroundColor "Yellow"
+	$Downloader = $updatesession.CreateUpdateDownloader()
+	$UpdatesList = $Result.Updates
+	For ($Counter = 0; $Counter -LT $Result.Updates.Count; $Counter++) {
+		$updatecollection.Add($UpdatesList.Item($Counter)) | Out-Null
+		$ShowThis = $UpdatesList.Item($Counter).Title
+		$DisplayCount = $Counter + 1
+		$Downloader.Updates = $updatecollection
+		$Track = $Downloader.Download()
+		If (($Track.HResult -EQ 0) -AND ($Track.ResultCode -EQ 2)) {
+		}
+		Else {
+			Write-Output "`t Download Status: FAILED With Error -- $Error()"
+			$Error.Clear()
+		}	
+	}
+	$Counter = 0
+	$DisplayCount = 0
+	Write-Output "`t Starting Installation of Downloaded Updates ..." -ForegroundColor "Yellow"
+	$Installer = New-Object -ComObject Microsoft.Update.Installer
+	For ($Counter = 0; $Counter -LT $updatecollection.Count; $Counter++) {
+		$Track = $Null
+		$DisplayCount = $Counter + 1
+		$WriteThis = $updatecollection.Item($Counter).Title
+		$Installer.Updates = $updatecollection
+		Try {
+			$Track = $Installer.Install()
+		}
+		Catch {
+			[System.Exception]
+			$Error.Clear()
+		}	
+	}
+}
+
+}#End Start-WindowsUpdates
 #Mark: Main
+Start-WindowsUpdates -ErrorAction 'ContinueSilently'
 try{Connect-AudioControls
 }Catch{
 Write-Output 'There was an unkown error connecting to the Audio API.'
