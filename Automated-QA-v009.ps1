@@ -201,7 +201,7 @@ Function Set-ComputerIcon{
   Else 
   { 
     #create a new property 
-    $null = New-ItemProperty -Path $path -Name $name -Value 0 -PropertyType DWORD  
+    New-ItemProperty -Path $path -Name $name -Value 0 -PropertyType DWORD > $null
     & "$env:windir\system32\rundll32.exe" USER32.DLL,UpdatePerUserSystemParameters 1, True
   } 
 }#End Set-ComputerIcon
@@ -209,14 +209,14 @@ Function Set-ManufacturerInfo {
 
     $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation"
 
-    IF(!(Test-Path $registryPath))
+    If(!(Test-Path $registryPath))
 
       {
         New-Item -Path $registryPath -Force > $null
 
         New-ItemProperty -Path $registryPath -Name Logo -Value "C:\\Windows\\System32\\oemlogo.bmp" -PropertyType String -Force > $null
         New-ItemProperty -Path $registryPath -Name Manufacturer -Value "Computers4Learning" -PropertyType String -Force > $null
-        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 3620 9640" -PropertyType String -Force > $null
+        New-ItemProperty -Path $registryPath -Name SupportPhone -Value "(07) 2101 3414" -PropertyType String -Force > $null
         New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         
       } ELSE {
@@ -318,6 +318,6 @@ Test-DeviceDrivers
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 
+Restart-Computer -Wait -For PowerShell -Force
 #Self Removal, must always be last line.
 Remove-Item -Path $MyINvocation.InvocationName
-Restart-Computer -Force
