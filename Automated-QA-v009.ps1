@@ -166,7 +166,7 @@ Function Open-InternetExplorer{
 }#End Start-Video
 Function New-LogFile{
   ## File path for QA_Report
-  $script:reportFilePath = "$env:Public\Desktop\QA_Report.txt"
+  $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
 
   $today = Get-Date
 
@@ -329,6 +329,20 @@ Else {
 }
 
 }#End Start-WindowsUpdates
+Function Send-Report{
+    $username = "qa-report"
+    $password = "Passw0rd21"
+    $secureStringPwd = $password | ConvertTo-SecureString -AsPlainText -Force 
+    $creds = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
+    Try{
+        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
+        Copy-Item -Path $reportFilePath -Destination temp:\
+        Remove-PSDrive -Name temp
+    }Catch{
+        Write-Output 'Failed to Contact Server to save QA-Report please contact workshop manager.'
+    }
+}#End Send-Report
+
 #Mark: Main
 Start-WindowsUpdates -ErrorAction 'ContinueSilently'
 Start-CCleaner 0
@@ -356,6 +370,9 @@ Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
+#Mark: Finalise
+Write-Output 'Send a copy of QA-Report to the server.'
+Send-Report
 Restart-Computer -Wait -For PowerShell -Force
 #Self Removal, must always be last line.
 Remove-Item -Path $MyINvocation.InvocationName
