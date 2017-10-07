@@ -91,7 +91,6 @@ Function Connect-AudioControls{
 Connect-NativeHelperType
 Connect-AudioControls
 
-
 #Mark: Functions
 Function Get-Software {
     Param([Parameter(Mandatory=$true)]
@@ -201,7 +200,7 @@ Function Test-Keyboard{
       Write-Log -text 'Keyboard test was successful'
       $exit = $true
     }else{
-      Clear-Host
+      Write-Output " "
       Write-Output -InputObject "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
@@ -213,7 +212,7 @@ Function Test-Keyboard{
 }#End Test-Keyboard
 Function Start-CCleaner {
     param([Parameter(Mandatory=$true)]
-    [switch]$m)
+    [int]$m)
     if($m -eq 0){
         Write-Output -InputObject 'Starting CCleaner quietly and running'
         Try{
@@ -344,10 +343,10 @@ Function Send-Report{
 }#End Send-Report
 
 #Mark: Main
-Start-WindowsUpdates -ErrorAction 'ContinueSilently'
-Start-CCleaner 0
+#Start-WindowsUpdates -ErrorAction 'ContinueSilently'
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
+Start-CCleaner -m 0
 Write-Output -InputObject 'Retrieving drives and expanding.'
 Expand-Drives
 Write-Output -InputObject 'Retrieving Installed Physical Memory'
@@ -360,10 +359,14 @@ Get-Software $installedsoftware
 Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output -InputObject 'Setting Volume to maximum and testing'
-[audio]::Mute = $false
-[audio]::Volume = 0.8
-Open-InternetExplorer
-Start-CCleaner 1
+Try{
+    [audio]::Mute = $false
+    [audio]::Volume = 0.8
+}Catch{
+    Write-Log 'No Audio Device could be found'
+}
+Open-InternetExplorer $videourl
+Start-CCleaner -m 1
 Write-Output -InputObject 'Waiting for 5 minutes for drivers to install, then checking device manager for errors.'
 Start-Sleep -Seconds 300
 Write-Output -InputObject 'Checking for Missing Device Drivers'
