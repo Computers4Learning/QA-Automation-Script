@@ -92,6 +92,7 @@ Connect-NativeHelperType
 Connect-AudioControls
 
 #Mark: Functions
+
 Function Get-Software {
     Param([Parameter(Mandatory=$true)]
     [string[]]$installedsoftware)
@@ -341,9 +342,16 @@ Function Send-Report{
         Write-Output 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
+Function Delayed-Restart{
+    $options = New-ScheduledJobOption -RunElevated -StartIfOnBattery -ContinueIfGoingOnBattery
+    $action =  {Restart-Computer -Force}
+    $trigger = New-JobTrigger -Once -At (Get-Date).Date.AddSeconds(20)
+    Register-Scheduledjob -Name 'Restart' -ScheduledJobOption $options -ScriptBlock $action -Trigger $trigger
+}#End Delayed-Restart
 
 #Mark: Main
-#Start-WindowsUpdates -ErrorAction 'ContinueSilently'
+Write-Output 'Starting Windows Updates in background.'
+$j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
 Start-CCleaner -m 0
@@ -367,15 +375,15 @@ Try{
 }
 Open-InternetExplorer $videourl
 Start-CCleaner -m 1
-Write-Output -InputObject 'Waiting for 5 minutes for drivers to install, then checking device manager for errors.'
-Start-Sleep -Seconds 300
+Write-Output -InputObject 'Waiting for Windows updates to complete before checking device manager.'
+Wait-Job -Id $j1.Id
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
-Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Mark: Finalise
 Write-Output 'Send a copy of QA-Report to the server.'
 Send-Report
-Restart-Computer -Wait -For PowerShell -Force
+Read-Host -Prompt 'QA Complete Computer will now Restart.'
+Restart-Computer -Force
 #Self Removal, must always be last line.
 Remove-Item -Path $MyINvocation.InvocationName
