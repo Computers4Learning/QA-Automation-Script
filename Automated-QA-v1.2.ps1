@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Inquire'
 $DebugPreference = 'SilentlyContinue'
 
 #Mark: Configuration Variables
-[string]$videourl = 'https://www.youtube.com/watch?v=wZZ7oFKsKzY'
+[string]$videourl = 'https://www.youtube.com/watch?v=nn2FB1P_Mn8'
 [string[]]$installedsoftware = ('Panda','VLC','Firefox','Adobe Acrobat Reader')
 
 #Mark: API Connections
@@ -348,8 +348,21 @@ Function Delayed-Restart{
     $trigger = New-JobTrigger -Once -At (Get-Date).Date.AddSeconds(20)
     Register-Scheduledjob -Name 'Restart' -ScheduledJobOption $options -ScriptBlock $action -Trigger $trigger
 }#End Delayed-Restart
+Function Check-Network{
+        [bool]$connected = $false
+        do{
+            if(Test-Connection 8.8.8.8 -Count 1 -Quiet){
+                $connected = $true
+                }Else{
+                Write-Output "There is no network connection please fix. `n"
+                Write-Output "Before continuing with QA"
+                Read-Host "Press any key to try again:"
+                }
+            }while($connected -eq $false)
+}#End Check-Network
 
 #Mark: Main
+Check-Network
 Write-Output 'Starting Windows Updates in background.'
 $j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
 Write-Output -InputObject 'Creating Report Log'
@@ -384,6 +397,7 @@ Test-DeviceDrivers
 Write-Output 'Send a copy of QA-Report to the server.'
 Send-Report
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
-Restart-Computer -Force
+
 #Self Removal, must always be last line.
-Remove-Item -Path $MyINvocation.InvocationName
+Remove-Item -Path $MyINvocation.InvocationName -Force
+Restart-Computer -Force
