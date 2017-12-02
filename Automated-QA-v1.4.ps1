@@ -10,7 +10,6 @@
 
 #Mark: Iniatialise
 $ErrorActionPreference = 'Inquire'
-$DebugPreference = 'SilentlyContinue'
 
 #Mark: Configuration Variables
 [string]$videourl = 'https://www.youtube.com/watch?v=nn2FB1P_Mn8'
@@ -374,7 +373,7 @@ Function Check-Network{
             }while($connected -eq $false)
 }#End Check-Network
 Function Get-OfficeSoftwareProtectionPlatform {	
-	[CmdletBinding()][OutputType([string])]
+	[OutputType([string])]
 	param ()
 	
 	$File = Get-ChildItem $env:ProgramFiles"\Microsoft Office" -Filter "OSPP.VBS" -Recurse
@@ -385,7 +384,7 @@ Function Get-OfficeSoftwareProtectionPlatform {
 	Return $File
 }#End Get-OfficeSoftwareProtectionPlatform
 Function Get-SoftwareLicenseManager {
-	[CmdletBinding()][OutputType([string])]
+	[OutputType([string])]
 	param ()
 	
 	$File = Get-ChildItem $env:windir"\system32" | Where-Object { $_.Name -eq "slmgr.vbs" }
@@ -393,7 +392,7 @@ Function Get-SoftwareLicenseManager {
 	Return $File
 }#End Get-SoftwareLicenseManager
 Function Invoke-OfficeActivation {
-	[CmdletBinding()][OutputType([boolean])]
+	[OutputType([boolean])]
 	param
 	(
 		[ValidateNotNullOrEmpty()][string]$OSPP
@@ -415,9 +414,7 @@ Function Invoke-OfficeActivation {
 	Return $Errors
 }#End Invoke-OfficeActivation
 Function Invoke-WindowsActivation {
-	[CmdletBinding()]param(
-		[ValidateNotNullOrEmpty()][string]$SLMGR
-	)
+	param([ValidateNotNullOrEmpty()][string]$SLMGR)
 	
 	$Errors = $false
 	Write-Host "Activate Microsoft Windows....." -NoNewline
@@ -435,10 +432,8 @@ Function Invoke-WindowsActivation {
 	Return $Errors
 }#End-WindowsActivation
 Function Set-OfficeProductKey {
-	[CmdletBinding()][OutputType([boolean])]
-	param(
-		[ValidateNotNullOrEmpty()][string]$OSPP
-	)
+    [OutputType([boolean])]
+	param([ValidateNotNullOrEmpty()][string]$OSPP)
 	
 	$Errors = $false
 	Write-Host "Set Microsoft Office Product Key....." -NoNewline
@@ -512,7 +507,7 @@ Test-DeviceDrivers
 #Activate Windows and Office if no Errors found.
 #Failed if updates won't run
 #Sound or Keyboard are fails
-if($failedQA -neq $true){
+if($failedQA -ne $true){
 [string]$OfficeProductKey
 [string]$WindowsProductKey
 [switch]$ActivateOffice
