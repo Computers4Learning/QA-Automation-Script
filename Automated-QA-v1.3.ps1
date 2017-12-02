@@ -15,6 +15,7 @@ $DebugPreference = 'SilentlyContinue'
 #Mark: Configuration Variables
 [string]$videourl = 'https://www.youtube.com/watch?v=nn2FB1P_Mn8'
 [string[]]$installedsoftware = ('Panda','VLC','Firefox','Adobe Acrobat Reader')
+[bool]$failedQA = $false
 
 #Mark: API Connections
 Function Connect-NativeHelperType{
@@ -156,6 +157,7 @@ Function Open-InternetExplorer{
       Write-Log -text 'Audio is functioning correctly.'
       $check = $true
     }Elseif($input -eq 'N' -or $input -eq 'n'){
+      $failedQA = $true
       Write-Log -text 'Audio failed to be heard please check speakers and audio drivers.'
       $check = $true
     }Else{
@@ -165,8 +167,15 @@ Function Open-InternetExplorer{
   
 }#End Start-Video
 Function New-LogFile{
-  ## File path for QA_Report
-  $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
+    ## File path for QA_Report
+    $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
+    [string]$Model = WMIC ComputerSystem Get Model | Out-String
+    $Model = $Model.Substring(5)
+    $Model = $Model.Trim()
+    [string]$Manufacturer = WMIC ComputerSystem Get Manufacturer | Out-String
+    $Manufacturer = $Manufacturer.Substring(12)
+    $Manufacturer = $Manufacturer.Trim()
+
 
   $today = Get-Date
 
@@ -178,6 +187,7 @@ Function New-LogFile{
   Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
   Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
   Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
+  Add-Content -Path $reportFilePath -Value "System Brand and Model: $Manufacturer $Model"
 }#End New-LogFile
 Function Write-Log {
   Param([string]$text)
@@ -205,6 +215,8 @@ Function Test-Keyboard{
       Write-Output -InputObject "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
+        $failedQA = $true
+        $FailReason = "Keyboard test Failed"
         Write-Log -text 'Keyboard test failed'
         $exit = $true
       }
@@ -307,6 +319,8 @@ Else {
 		Else {
 			Write-Output "`t Download Status: FAILED With Error -- $Error()"
 			$Error.Clear()
+            $failedQA = $true
+            $FailedReason = "Windows updates failed to download"
 		}
 	}
 	$Counter = 0
@@ -360,6 +374,109 @@ Function Check-Network{
                 }
             }while($connected -eq $false)
 }#End Check-Network
+Function Get-OfficeSoftwareProtectionPlatform {	
+	[CmdletBinding()][OutputType([string])]
+	param ()
+	
+	$File = Get-ChildItem $env:ProgramFiles"\Microsoft Office" -Filter "OSPP.VBS" -Recurse
+	If (($File -eq $null) -or ($File -eq '')) {
+		$File = Get-ChildItem ${env:ProgramFiles(x86)}"\Microsoft Office" -Filter "OSPP.VBS" -Recurse
+	}
+	$File = $File.FullName
+	Return $File
+}
+Function Get-SoftwareLicenseManager {
+	[CmdletBinding()][OutputType([string])]
+	param ()
+	
+	$File = Get-ChildItem $env:windir"\system32" | Where-Object { $_.Name -eq "slmgr.vbs" }
+	$File = $File.FullName
+	Return $File
+}
+Function Invoke-OfficeActivation {
+	[CmdletBinding()][OutputType([boolean])]
+	param
+	(
+		[ValidateNotNullOrEmpty()][string]$OSPP
+	)
+	
+	$Errors = $false
+	Write-Host "Activate Microsoft Office....." -NoNewline
+	$Executable = $env:windir + "\System32\cscript.exe"
+	$Switches = [char]34 + $OSPP + [char]34 + [char]32 + "/act"
+	If ((Test-Path $Executable) -eq $true) {
+		$ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
+	}
+	If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
+		Write-Host "Success" -ForegroundColor Yellow
+	} else {
+		Write-Host "Failed with error code"$ErrCode -ForegroundColor Red
+		$Errors = $true
+	}
+	Return $Errors
+}
+Function Invoke-WindowsActivation {
+	[CmdletBinding()]param(
+		[ValidateNotNullOrEmpty()][string]$SLMGR
+	)
+	
+	$Errors = $false
+	Write-Host "Activate Microsoft Windows....." -NoNewline
+	$Executable = $env:windir + "\System32\cscript.exe"
+	$Switches = [char]34 + $SLMGR + [char]34 + [char]32 + "-ato"
+	If ((Test-Path $Executable) -eq $true) {
+		$ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
+	}
+	If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
+		Write-Host "Success" -ForegroundColor Yellow
+	} else {
+		Write-Host "Failed with error code"$ErrCode -ForegroundColor Red
+		$Errors = $true
+	}
+	Return $Errors
+}
+Function Set-OfficeProductKey {
+	[CmdletBinding()][OutputType([boolean])]
+	param(
+		[ValidateNotNullOrEmpty()][string]$OSPP
+	)
+	
+	$Errors = $false
+	Write-Host "Set Microsoft Office Product Key....." -NoNewline
+	$Executable = $env:windir + "\System32\cscript.exe"
+	$Switches = [char]34 + $OSPP + [char]34 + [char]32 + "/inpkey:" + $OfficeProductKey
+	If ((Test-Path $Executable) -eq $true) {
+		$ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
+	}
+	If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
+		Write-Host "Success" -ForegroundColor Yellow
+	} else {
+		Write-Host "Failed with error code"$ErrCode -ForegroundColor Red
+		$Errors = $true
+	}
+	Return $Errors
+}
+Function Set-WindowsProductKey {
+	[CmdletBinding()][OutputType([boolean])]
+	param(
+		[ValidateNotNullOrEmpty()][string]$SLMGR
+	)
+	
+	$Errors = $false
+	Write-Host "Set Microsoft Windows Product Key....." -NoNewline
+	$Executable = $env:windir + "\System32\cscript.exe"
+	$Switches = [char]34 + $SLMGR + [char]34 + [char]32 + "/ipk" + [char]32 + $WindowsProductKey
+	If ((Test-Path $Executable) -eq $true) {
+		$ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
+	}
+	If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
+		Write-Host "Success" -ForegroundColor Yellow
+	} else {
+		Write-Host "Failed with error code"$ErrCode -ForegroundColor Red
+		$Errors = $true
+	}
+	Return $Errors
+}
 
 #Mark: Main
 Check-Network
@@ -392,6 +509,89 @@ Write-Output -InputObject 'Waiting for Windows updates to complete before checki
 Wait-Job -Id $j1.Id
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
+
+#Activate Windows and Office if no Errors found.
+#Failed if updates won't run
+#Sound or Keyboard are fails
+if($failedQA -neq $true){
+[string]$OfficeProductKey,
+[string]$WindowsProductKey,
+[switch]$ActivateOffice,
+[switch]$ActivateWindows
+
+Clear-Host
+$ErrorReport = $false
+$ActivateOffice = Read-Host "Please enter Office Activation Code:"
+$ActivateWindows = Read-Host "Please enter Windows Activation Code:"
+#Find OSPP.vbs file
+$OSPP = Get-OfficeSoftwareProtectionPlatform
+
+#Assign Microsoft Office Product Key
+#Check if a value was passed to $OfficeProductKey
+If (($OfficeProductKey -ne $null) -and ($OfficeProductKey -ne '')) {
+	#Check if OSPP.vbs was found
+	If (($OSPP -ne $null) -and ($OSPP -ne '')) {
+		#Assign Microsoft Office Product Key
+		$Errors = Set-OfficeProductKey -OSPP $OSPP
+		If ($ErrorReport -eq $false) {
+			$ErrorReport = $Errors
+		}
+	} else {
+		Write-Host "Office Software Protection Platform not found to set the Microsoft Office Product Key" -ForegroundColor Red
+	}
+}
+#Check if $ActivateOffice was selected
+If ($ActivateOffice.IsPresent) {
+	#Check if OSPP.vbs was found
+	If (($OSPP -ne $null) -and ($OSPP -ne '')) {
+		#Activate Microsoft Office
+		$Errors = Invoke-OfficeActivation -OSPP $OSPP
+		If ($ErrorReport -eq $false) {
+			$ErrorReport = $Errors
+		}
+	} else {
+		Write-Host "Office Software Protection Platform not found to activate Microsoft Office" -ForegroundColor Red
+	}
+}
+
+#Check if a value was passed to $WindowsProductKey
+If (($WindowsProductKey -ne $null) -and ($WindowsProductKey -ne '')) {
+	#Find SLMGR.VBS
+	$SLMGR = Get-SoftwareLicenseManager
+	#Check if SLMGR.VBS was found
+	If (($SLMGR -ne $null) -and ($SLMGR -ne '')) {
+		#Assign Windows Product Key
+		$Errors = Set-WindowsProductKey -SLMGR $SLMGR
+		If ($ErrorReport -eq $false) {
+			$ErrorReport = $Errors
+		}
+	} else {
+		Write-Host "Software licensing management tool not found to set the Microsoft Windows Product Key" -ForegroundColor Red
+	}
+}
+#Check if $ActivateWindows was selected
+If ($ActivateWindows.IsPresent) {
+	#Find SLMGR.VBS
+	$SLMGR = Get-SoftwareLicenseManager
+	#Check if SLMGR.VBS was found
+	If (($SLMGR -ne $null) -and ($SLMGR -ne '')) {
+		#Activate Micosoft Windows
+		$Errors = Invoke-WindowsActivation -SLMGR $SLMGR
+		If ($ErrorReport -eq $false) {
+			$ErrorReport = $Errors
+		}
+	} else {
+		Write-Host "Software licensing management tool not found to activate Microsoft Windows" -ForegroundColor Red
+	}
+}
+#Exit with an error code 1 if an error was encountered
+If ($ErrorReport -eq $true) {
+	Write-Host "Failed to Activate"-ForegroundColor Red
+}
+}Else{
+Write-Host "Test failed on $FailReason"
+#Why Test Failed
+}#End Activating Windows
 
 #Mark: Finalise
 Write-Output 'Send a copy of QA-Report to the server.'
