@@ -93,7 +93,6 @@ Connect-NativeHelperType
 Connect-AudioControls
 
 #Mark: Functions
-
 Function Get-Software {
     Param([Parameter(Mandatory=$true)]
     [string[]]$installedsoftware)
@@ -368,7 +367,7 @@ Function Check-Network{
             if(Test-Connection 8.8.8.8 -Count 1 -Quiet){
                 $connected = $true
                 }Else{
-                Write-Output "There is no network connection please fix. `n"
+                Write-Output "There is no network connection please fix."
                 Write-Output "Before continuing with QA"
                 Read-Host "Press any key to try again:"
                 }
@@ -384,7 +383,7 @@ Function Get-OfficeSoftwareProtectionPlatform {
 	}
 	$File = $File.FullName
 	Return $File
-}
+}#End Get-OfficeSoftwareProtectionPlatform
 Function Get-SoftwareLicenseManager {
 	[CmdletBinding()][OutputType([string])]
 	param ()
@@ -392,7 +391,7 @@ Function Get-SoftwareLicenseManager {
 	$File = Get-ChildItem $env:windir"\system32" | Where-Object { $_.Name -eq "slmgr.vbs" }
 	$File = $File.FullName
 	Return $File
-}
+}#End Get-SoftwareLicenseManager
 Function Invoke-OfficeActivation {
 	[CmdletBinding()][OutputType([boolean])]
 	param
@@ -414,7 +413,7 @@ Function Invoke-OfficeActivation {
 		$Errors = $true
 	}
 	Return $Errors
-}
+}#End Invoke-OfficeActivation
 Function Invoke-WindowsActivation {
 	[CmdletBinding()]param(
 		[ValidateNotNullOrEmpty()][string]$SLMGR
@@ -434,7 +433,7 @@ Function Invoke-WindowsActivation {
 		$Errors = $true
 	}
 	Return $Errors
-}
+}#End-WindowsActivation
 Function Set-OfficeProductKey {
 	[CmdletBinding()][OutputType([boolean])]
 	param(
@@ -455,7 +454,7 @@ Function Set-OfficeProductKey {
 		$Errors = $true
 	}
 	Return $Errors
-}
+}#Set-OfficerProductKey
 Function Set-WindowsProductKey {
 	[CmdletBinding()][OutputType([boolean])]
 	param(
@@ -476,7 +475,7 @@ Function Set-WindowsProductKey {
 		$Errors = $true
 	}
 	Return $Errors
-}
+}#End-Windows-ProductKey
 
 #Mark: Main
 Check-Network
@@ -514,9 +513,9 @@ Test-DeviceDrivers
 #Failed if updates won't run
 #Sound or Keyboard are fails
 if($failedQA -neq $true){
-[string]$OfficeProductKey,
-[string]$WindowsProductKey,
-[switch]$ActivateOffice,
+[string]$OfficeProductKey
+[string]$WindowsProductKey
+[switch]$ActivateOffice
 [switch]$ActivateWindows
 
 Clear-Host
