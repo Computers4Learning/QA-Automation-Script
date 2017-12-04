@@ -507,7 +507,7 @@ Test-DeviceDrivers
 #Activate Windows and Office if no Errors found.
 #Failed if updates won't run
 #Sound or Keyboard are fails
-if($failedQA -ne $true){
+if($failedQA -ne $false){
 [string]$OfficeProductKey
 [string]$WindowsProductKey
 [switch]$ActivateOffice
