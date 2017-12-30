@@ -106,10 +106,12 @@ Function Get-Software {
             $32bit = Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
             Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
             Out-String
+            $32bit = $32bit.TrimEnd()
             Write-Log -text $32bit
         }elseif($32bit -eq '') {
             Write-Log -text "$app Could not be found"
         }else{
+            $64bit = $64bit.TrimEnd()
             Write-Log -text $64bit
         }
     }
@@ -354,12 +356,6 @@ Function Send-Report{
         Write-Output 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
-Function Delayed-Restart{
-    $options = New-ScheduledJobOption -RunElevated -StartIfOnBattery -ContinueIfGoingOnBattery
-    $action =  {Restart-Computer -Force}
-    $trigger = New-JobTrigger -Once -At (Get-Date).Date.AddSeconds(20)
-    Register-Scheduledjob -Name 'Restart' -ScheduledJobOption $options -ScriptBlock $action -Trigger $trigger
-}#End Delayed-Restart
 Function Check-Network{
         [bool]$connected = $false
         do{
@@ -471,11 +467,6 @@ Function Set-WindowsProductKey {
 	}
 	Return $Errors
 }#End-Windows-ProductKey
-Function WindowsUpdates{
-    Get-Command –module PSWindowsUpdate
-    Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d
-    Get-WUInstall –MicrosoftUpdate –AcceptAll –IgnoreReboot -Verbose
-}#End WindowsUpdatwes
 #Mark: Main
 Check-Network
 
@@ -493,11 +484,13 @@ if(Get-Module -ListAvailable -Name PowerShellGet){
     Install-Module PSWindowsUpdate -Force
 }#End Installing PSWindowsUpdate
 
+#Open a new session to run windows updates
 Write-Output 'Starting Windows Updates in a new windows.'
 Start-Process Powershell.exe {    Get-Command –module PSWindowsUpdate;
     Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
     Get-WUInstall –MicrosoftUpdate –AcceptAll –IgnoreReboot -Verbose}
 #$j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
+
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
 Start-CCleaner -m 0
@@ -518,10 +511,12 @@ Try{
     [audio]::Volume = 0.8
 }Catch{
     Write-Log 'No Audio Device could be found'
+    Write-Host -ForegroundColor Red 'No Audio Device could be found'
 }
 Open-InternetExplorer $videourl
 Start-CCleaner -m 1
-Write-Output -InputObject 'Waiting for Windows updates to complete before checking device manager.'
+Write-Output -InputObject 'Please wait for windows updates to finish before checking for device drivers.'
+Read-Host 'Press any key to continue.'
 #Wait-Job -Id $j1.Id
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
