@@ -282,7 +282,7 @@ Function Set-ManufacturerInfo {
         New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         }
 } #End Set-ManufacturerInfo
-Function Start-WindowsUpdates{
+<# Function Start-WindowsUpdates{
 $updatecollection = New-Object -ComObject Microsoft.Update.UpdateColl
 $updatesearcher = New-Object -ComObject Microsoft.Update.Searcher
 $updatesession = New-Object -ComObject Microsoft.Update.Session
@@ -340,7 +340,7 @@ Else {
 	}
 }
 
-}#End Start-WindowsUpdates
+}#End Start-WindowsUpdates #>
 Function Send-Report{
     $username = "qa-report"
     $password = "Passw0rd21"
@@ -471,11 +471,33 @@ Function Set-WindowsProductKey {
 	}
 	Return $Errors
 }#End-Windows-ProductKey
-
+Function WindowsUpdates{
+    Get-Command –module PSWindowsUpdate
+    Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d
+    Get-WUInstall –MicrosoftUpdate –AcceptAll –IgnoreReboot -Verbose
+}#End WindowsUpdatwes
 #Mark: Main
 Check-Network
-Write-Output 'Starting Windows Updates in background.'
-$j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
+
+#Configure required Modules
+if(Get-Module -ListAvailable -Name PowerShellGet){
+    Write-Output 'PowershellGet Configured'
+}Else {
+    Write-Output 'Setting up Powershell Get'
+    Install-Module -Name PowershellGet -Force
+}#End Installing PowershellGet Module
+if(Get-Module -ListAvailable -Name PowerShellGet){
+    Write-Output 'WindowsUpdates Connected'
+}Else{
+    Write-Output 'Connecting to Windows Updates '
+    Install-Module PSWindowsUpdate -Force
+}#End Installing PSWindowsUpdate
+
+Write-Output 'Starting Windows Updates in a new windows.'
+Start-Process Powershell.exe {    Get-Command –module PSWindowsUpdate;
+    Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
+    Get-WUInstall –MicrosoftUpdate –AcceptAll –IgnoreReboot -Verbose}
+#$j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
 Start-CCleaner -m 0
@@ -500,7 +522,7 @@ Try{
 Open-InternetExplorer $videourl
 Start-CCleaner -m 1
 Write-Output -InputObject 'Waiting for Windows updates to complete before checking device manager.'
-Wait-Job -Id $j1.Id
+#Wait-Job -Id $j1.Id
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDrivers
 
