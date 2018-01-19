@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Inquire'
 #Mark: Configuration Variables
 [string]$videourl = 'https://www.youtube.com/watch?v=nn2FB1P_Mn8'
 [string[]]$installedsoftware = ('Panda','VLC','Firefox','Adobe Acrobat Reader')
-[bool]$failedQA = $false
+[bool]$script:failedQA = $false
 
 #Mark: API Connections
 Function Connect-NativeHelperType{
@@ -41,7 +41,7 @@ if(-not ([System.Management.Automation.PSTypeName] "NativeHelper").Type)
         Add-Type -TypeDefinition $nativeHelperTypeDefinition
     }
 }#End Connect-NativeHelperType
-Function Connect-AudioControls{
+Function Connect-AudoController{
     Param()
     Add-Type -TypeDefinition @'
     using System.Runtime.InteropServices;
@@ -87,9 +87,9 @@ Function Connect-AudioControls{
     }
 }
 '@
-}#End Connect-AudioControls
+}#End Connect-AudoController
 Connect-NativeHelperType
-Connect-AudioControls
+Connect-AudoController
 
 #Mark: Functions
 Function Get-Software {
@@ -116,12 +116,12 @@ Function Get-Software {
         }
     }
 }#End Get-Software
-Function Test-DeviceDrivers{
+Function Test-DeviceDriver{
     #Checks for devices whose ConfigManagerErrorCode value is greater than 0, i.e has a problem device.
     $missingdrivers = Get-ciminstance -Class Win32_PnpEntity -Namespace Root\CIMV2 | 
     Where-Object {$_.ConfigManagerErrorCode -gt 0 } |Select-Object -Property Name,DeviceID,ConfigManagerErrorCode | Out-String
 
-    if($missingdrivers -eq $null){
+    if($null -eq $missingdrivers){
       Write-Log -text ('No Device Drivers are Missing on this machine.')
     }else{
       ForEach($missingdrive in $missingdrivers){
@@ -129,7 +129,7 @@ Function Test-DeviceDrivers{
       }
     }
 }#End Test-Drivers
-Function Expand-Drives{
+Function Expand-Drive{
         $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
         $drivesize = (Get-Partition -DriveLetter C).size
          if($drivesize -eq $maxsize){
@@ -142,7 +142,7 @@ Function Expand-Drives{
         $maxsize = $maxsize/1024/1024/1024
         $maxsize = [Math]::Round($maxsize)
         Write-Log -text "C:\ is $($maxsize)GB"
-}#End Expand-Drives
+}#End Expand-Drive
 Function Open-InternetExplorer{
     param ([Parameter(Mandatory=$true)]
            [string]$videourl)
@@ -157,7 +157,7 @@ Function Open-InternetExplorer{
       Write-Log -text 'Audio is functioning correctly.'
       $check = $true
     }Elseif($input -eq 'N' -or $input -eq 'n'){
-      $failedQA = $true
+      $script:failedQA = $true
       Write-Log -text 'Audio failed to be heard please check speakers and audio drivers.'
       $check = $true
     }Else{
@@ -215,8 +215,8 @@ Function Test-Keyboard{
       Write-Output -InputObject "Keyboard test failed you typed: `n$testinput"
       $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
-        $failedQA = $true
-        $FailReason = "Keyboard test Failed"
+        $script:failedQA = $true
+        $script:failreason = "Keyboard test Failed"
         Write-Log -text 'Keyboard test failed'
         $exit = $true
       }
@@ -349,14 +349,14 @@ Function Send-Report{
     $secureStringPwd = $password | ConvertTo-SecureString -AsPlainText -Force 
     $creds = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
     Try{
-        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
+        New-PSDrive -Name temp -PSProvider FileSystem -Root \\FILESERVER\qa-report -Credential $creds
         Copy-Item -Path $reportFilePath -Destination temp:\
         Remove-PSDrive -Name temp
     }Catch{
         Write-Output 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
-Function Check-Network{
+Function Test-Network{
         [bool]$connected = $false
         do{
             if(Test-Connection 8.8.8.8 -Count 1 -Quiet){
@@ -367,13 +367,13 @@ Function Check-Network{
                 Read-Host "Press any key to try again:"
                 }
             }while($connected -eq $false)
-}#End Check-Network
+}#End Test-Network
 Function Get-OfficeSoftwareProtectionPlatform {	
 	[OutputType([string])]
 	param ()
 	
 	$File = Get-ChildItem $env:ProgramFiles"\Microsoft Office" -Filter "OSPP.VBS" -Recurse
-	If (($File -eq $null) -or ($File -eq '')) {
+	If (($null -eq $File) -or ($File -eq '')) {
 		$File = Get-ChildItem ${env:ProgramFiles(x86)}"\Microsoft Office" -Filter "OSPP.VBS" -Recurse
 	}
 	$File = $File.FullName
@@ -468,7 +468,7 @@ Function Set-WindowsProductKey {
 	Return $Errors
 }#End-Windows-ProductKey
 #Mark: Main
-Check-Network
+Test-Network
 
 #Configure required Modules
 if(Get-Module -ListAvailable -Name PowerShellGet){
@@ -495,7 +495,7 @@ Write-Output -InputObject 'Creating Report Log'
 New-LogFile
 Start-CCleaner -m 0
 Write-Output -InputObject 'Retrieving drives and expanding.'
-Expand-Drives
+Expand-Drive
 Write-Output -InputObject 'Retrieving Installed Physical Memory'
 Get-RAM
 Write-Output -InputObject 'Configuring OEM Info'
@@ -519,7 +519,7 @@ Write-Output -InputObject 'Please wait for windows updates to finish before chec
 Read-Host 'Press any key to continue.'
 #Wait-Job -Id $j1.Id
 Write-Output -InputObject 'Checking for Missing Device Drivers'
-Test-DeviceDrivers
+Test-DeviceDriver
 
 #Activate Windows and Office if no Errors found.
 #Failed if updates won't run
@@ -539,9 +539,9 @@ $OSPP = Get-OfficeSoftwareProtectionPlatform
 
 #Assign Microsoft Office Product Key
 #Check if a value was passed to $OfficeProductKey
-If (($OfficeProductKey -ne $null) -and ($OfficeProductKey -ne '')) {
+If (($null -ne $OfficeProductKey) -and ($OfficeProductKey -ne '')) {
 	#Check if OSPP.vbs was found
-	If (($OSPP -ne $null) -and ($OSPP -ne '')) {
+	If (($null -ne $OSPP) -and ($OSPP -ne '')) {
 		#Assign Microsoft Office Product Key
 		$Errors = Set-OfficeProductKey -OSPP $OSPP
 		If ($ErrorReport -eq $false) {
@@ -554,7 +554,7 @@ If (($OfficeProductKey -ne $null) -and ($OfficeProductKey -ne '')) {
 #Check if $ActivateOffice was selected
 If ($ActivateOffice.IsPresent) {
 	#Check if OSPP.vbs was found
-	If (($OSPP -ne $null) -and ($OSPP -ne '')) {
+	If (($null -ne $OSPP) -and ($OSPP -ne '')) {
 		#Activate Microsoft Office
 		$Errors = Invoke-OfficeActivation -OSPP $OSPP
 		If ($ErrorReport -eq $false) {
@@ -566,11 +566,11 @@ If ($ActivateOffice.IsPresent) {
 }
 
 #Check if a value was passed to $WindowsProductKey
-If (($WindowsProductKey -ne $null) -and ($WindowsProductKey -ne '')) {
+If (($null -ne $WindowsProductKey) -and ($WindowsProductKey -ne '')) {
 	#Find SLMGR.VBS
 	$SLMGR = Get-SoftwareLicenseManager
 	#Check if SLMGR.VBS was found
-	If (($SLMGR -ne $null) -and ($SLMGR -ne '')) {
+	If (($null -ne $SLMGR) -and ($SLMGR -ne '')) {
 		#Assign Windows Product Key
 		$Errors = Set-WindowsProductKey -SLMGR $SLMGR
 		If ($ErrorReport -eq $false) {
@@ -585,7 +585,7 @@ If ($ActivateWindows.IsPresent) {
 	#Find SLMGR.VBS
 	$SLMGR = Get-SoftwareLicenseManager
 	#Check if SLMGR.VBS was found
-	If (($SLMGR -ne $null) -and ($SLMGR -ne '')) {
+	If (($null -ne $SLMGR) -and ($SLMGR -ne '')) {
 		#Activate Micosoft Windows
 		$Errors = Invoke-WindowsActivation -SLMGR $SLMGR
 		If ($ErrorReport -eq $false) {
@@ -600,7 +600,7 @@ If ($ErrorReport -eq $true) {
 	Write-Host "Failed to Activate"-ForegroundColor Red
 }
 }Else{
-Write-Host "Test failed on $FailReason"
+Write-Host "Test failed on $script:failreason"
 #Why Test Failed
 }#End Activating Windows
 
@@ -610,5 +610,5 @@ Send-Report
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Self Removal, must always be last line.
-Remove-Item -Path $MyINvocation.InvocationName -Force
+Remove-Item -Path $MyInvocation.MyCommand.Path -Force
 Restart-Computer -Force
