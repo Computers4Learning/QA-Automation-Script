@@ -611,4 +611,5 @@ Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Self Removal, must always be last line.
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
+Remove-Item -Path $reportFilePath -Force
 Restart-Computer -Force
