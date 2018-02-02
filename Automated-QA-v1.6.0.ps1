@@ -284,65 +284,6 @@ Function Set-ManufacturerInfo {
         New-ItemProperty -Path $registryPath -Name SupportURL -Value "http://www.computers4learning.net.au" -PropertyType String -Force > $null
         }
 } #End Set-ManufacturerInfo
-<# Function Start-WindowsUpdates{
-$updatecollection = New-Object -ComObject Microsoft.Update.UpdateColl
-$updatesearcher = New-Object -ComObject Microsoft.Update.Searcher
-$updatesession = New-Object -ComObject Microsoft.Update.Session
-
-#Call searcher and write it's results to a variable.
-Write-Output "`t Initialising and Checking for Applicable Updates. Please wait ..." -ForeGroundColor "Yellow"
-$result = $updatesearcher.Search("IsInstalled=0 and Type='Software' and IsHidden=0")
-
-#Check that there's something in the update list. If not end. 
-If ($result.Updates.Count -EQ 0) {
-	Write-Output "`t There are no applicable updates for this computer."
-}
-Else {
-	For ($Counter = 0; $Counter -LT $result.Updates.Count; $Counter++) {
-		$DisplayCount = $Counter + 1
-    		$Update = $result.Updates.Item($Counter)
-		$UpdateTitle = $Update.Title
-	}
-	$Counter = 0
-	$DisplayCount = 0
-	Write-Output "`t Initialising Download of Applicable Updates ..." -ForegroundColor "Yellow"
-	$Downloader = $updatesession.CreateUpdateDownloader()
-	$UpdatesList = $result.Updates
-	For ($Counter = 0; $Counter -LT $result.Updates.Count; $Counter++) {
-		$updatecollection.Add($UpdatesList.Item($Counter)) | Out-Null
-		$ShowThis = $UpdatesList.Item($Counter).Title
-		$DisplayCount = $Counter + 1
-		$Downloader.Updates = $updatecollection
-		$Track = $Downloader.Download()
-		If (($Track.HResult -EQ 0) -AND ($Track.ResultCode -EQ 2)) {
-		}
-		Else {
-			Write-Output "`t Download Status: FAILED With Error -- $Error()"
-			$Error.Clear()
-            $failedQA = $true
-            $FailedReason = "Windows updates failed to download"
-		}
-	}
-	$Counter = 0
-	$DisplayCount = 0
-	Write-Output "`t Starting Installation of Downloaded Updates ..." -ForegroundColor "Yellow"
-	$Installer = New-Object -ComObject Microsoft.Update.Installer
-	For ($Counter = 0; $Counter -LT $updatecollection.Count; $Counter++) {
-		$Track = $Null
-		$DisplayCount = $Counter + 1
-		$WriteThis = $updatecollection.Item($Counter).Title
-		$Installer.Updates = $updatecollection
-		Try {
-			$Track = $Installer.Install()
-		}
-		Catch {
-			[System.Exception]
-			$Error.Clear()
-		}	
-	}
-}
-
-}#End Start-WindowsUpdates #>
 Function Send-Report{
     $username = "qa-report"
     $password = "Passw0rd21"
@@ -467,11 +408,47 @@ Function Set-WindowsProductKey {
 	}
 	Return $Errors
 }#End-Windows-ProductKey
+Function Update-Script{
+    $username = "currentscript"
+    $password = "Passw0rd.21"
+    $secureStringPwd = $password | ConvertTo-SecureString -AsPlainText -Force 
+    $creds = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
+    Try{
+        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds
+    }Catch{
+        Write-Output 'Failed to Contact FileServer to update QA-Script please contact workshop manager.'
+    }
+
+    if(Test-Path temp:\){
+        $currentscriptname = Split-Path -Path "\\192.168.1.18\currentscript\*.exe" -Leaf -Resolve | Out-String
+        $oldscriptname = $MyInvocation.ScriptName | Out-String
+        $oldscriptname = $oldscriptname.Substring(0, $oldscriptname.lastIndexOf('\'))
+        $oldscriptname = $oldscriptname + "\*.exe"
+        $oldscriptname = Split-Path -Path $oldscriptname -Leaf -Resolve | Out-String
+        Write-Host $oldscriptname
+        Write-Host $currentscriptname
+        if(Compare-Object $oldscriptname $currentscriptname){
+            Write-Host "Newer version detected updating script."
+            Copy-Item -Path "temp:\$currentscriptname" -Destination "C:\Users\Public\Desktop"
+            Remove-Item $MyInvocation.ScriptName
+            Write-Host "Update Complete, restarting script."
+            & "C:\Users\Public\Desktop\$currentscriptname"
+            Return 0
+
+        }else{
+            Write-Host "QA-Script is up to date continuing."
+        }
+    }else{
+        Write-host "temp doesn't exist :( "
+    }
+
+}#End Update-Script
+
 #Mark: Main
 Test-Network
 
 #Configure required Modules
-if(Get-Module -ListAvailable -Name PowerShellGet){
+If(Get-Module -ListAvailable -Name PowerShellGet){
     Write-Output 'PowershellGet Configured'
 }Else {
     Write-Output 'Setting up Powershell Get'
@@ -489,7 +466,6 @@ Write-Output 'Starting Windows Updates in a new windows.'
 Start-Process Powershell.exe {    Get-Command –module PSWindowsUpdate;
     Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
     Get-WUInstall –MicrosoftUpdate –AcceptAll –IgnoreReboot -Verbose}
-#$j1 = Start-Job -Name 'Updates' -ScriptBlock {Start-WindowsUpdates -ErrorAction 'ContinueSilently'}
 
 Write-Output -InputObject 'Creating Report Log'
 New-LogFile
