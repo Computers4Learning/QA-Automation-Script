@@ -5,16 +5,11 @@
     refurbished machines on the computers 4 learning project.
 
     Written By Mitchell Beare
-    2017
+    2018
 #>
 
 #Mark: Iniatialise
 $ErrorActionPreference = 'Inquire'
-
-#Mark: Configuration Variables
-[string]$videourl = 'https://www.youtube.com/watch?v=nn2FB1P_Mn8'
-[string[]]$installedsoftware = ('Panda','VLC','Firefox','Adobe Acrobat Reader')
-[bool]$script:failedQA = $false
 
 #Mark: API Connections
 Function Connect-NativeHelperType{
@@ -92,6 +87,32 @@ Connect-NativeHelperType
 Connect-AudoController
 
 #Mark: Functions
+Function Read-ConfigFile {
+#This function reads the server side config file and loads variables into memory for use. 
+
+    #Create server connect creds
+    $username = "currentscript"
+    $password = "Passw0rd21"
+    $secureStringPwd = $password | ConvertTo-SecureString -AsPlainText -Force 
+    $creds = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
+
+    #Create a drive with the FileServer
+    Try{
+        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds
+    }Catch{
+        Write-Output 'Failed to Contact FileServer to update QA-Script please contact workshop manager.'
+    }
+
+    #Load Configuration XML
+    if(Test-Path temp:\){
+        [xml]$Script:XmlDocument = Get-Content -Path temp:\Script_Config.xml
+    }Else{
+    Write-Error "Warning Failed to load config some functions may fail."
+    }
+
+    #Cleanup
+    Remove-PSDrive -Name temp
+}#End Read-ConfigFile
 Function Get-Software {
     Param([Parameter(Mandatory=$true)]
     [string[]]$installedsoftware)
@@ -441,11 +462,18 @@ Function Update-Script{
     }else{
         Write-host "temp doesn't exist :( "
     }
+    Remove-PSDrive -Name temp
 
 }#End Update-Script
 
 #Mark: Main
 Test-Network
+
+#Mark: Configuration Variables
+Read-ConfigFile
+[string]$videourl = $XmlDocument.Variables.videourl.InnerText
+[string[]]$installedsoftware = $XmlDocument.Variables.installedsoftware
+[bool]$script:failedQA = $false
 
 #Configure required Modules
 If(Get-Module -ListAvailable -Name PowerShellGet){
