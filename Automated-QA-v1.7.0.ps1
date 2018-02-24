@@ -324,6 +324,7 @@ Function Send-Report{
     }
 }#End Send-Report
 Function Test-Network{
+        [string]$script:fileserver = '192.168.1.18'
         [bool]$connected = $false
         do{
             if(Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet){
@@ -334,6 +335,17 @@ Function Test-Network{
                 Read-Host -Prompt 'Press any key to try again:'
                 }
             }while($connected -eq $false)
+            if($connected = $true){
+            Write-Output "Checking for C4L Fileserver"
+              if(Test-Connection 192.168.1.18 -Count 1 -Quiet){
+                Return 1
+              }Else{
+                $fileserver = Read-Host "Fileserver not found at $fileserver`r`nPlease Enter server ip"
+              
+              }
+            }
+            
+            
 }#End Test-Network
 Function Get-OfficeSoftwareProtectionPlatform {	
   [OutputType([string])]
@@ -594,7 +606,6 @@ Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Self Removal, must always be last line.
 #Remove-Item -Path $reportFilePath -Force
-Remove-Item -Path $(Get-Variable -Name MyInvocation).Value.PSScriptRoot -Force
 $action = New-ScheduledTaskAction -Execute Powershell.exe -Argument "Remove-Item 'C:\Users\User\Desktop\Automated-QA*' -Force"
 $setting = New-ScheduledTaskSettingsSet -Priority 5 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -StartWhenAvailable -WakeToRun
 $Time = Get-Date
