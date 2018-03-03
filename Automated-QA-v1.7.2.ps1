@@ -311,19 +311,22 @@ Function Set-ManufacturerInfo {
         }
 } #End Set-ManufacturerInfo
 Function Send-Report{
-    $username = 'currentscript'
+    $username = 'qa-report'
     $password = 'Passw0rd21'
     $secureStringPwd = $password | ConvertTo-SecureString -AsPlainText -Force 
     $creds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
     Try{
-        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
+        if(-not(Get-PSDrive | Where-Object Name -match temp)){
+          New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
+        }
         Copy-Item -Path $reportFilePath -Destination temp:\
         Remove-PSDrive -Name temp
     }Catch{
-        Write-Output -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
+        Write-Warning -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
 Function Test-Network{
+        [string]$script:fileserver = '192.168.1.18'
         [bool]$connected = $false
         do{
             if(Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet){
@@ -334,6 +337,17 @@ Function Test-Network{
                 Read-Host -Prompt 'Press any key to try again:'
                 }
             }while($connected -eq $false)
+            if($connected = $true){
+            Write-Output -InputObject 'Checking for C4L Fileserver'
+              if(Test-Connection -ComputerName 192.168.1.18 -Count 1 -Quiet){
+                Return 1
+              }Else{
+                $fileserver = Read-Host -Prompt "Fileserver not found at $fileserver`r`nPlease Enter server ip"
+              
+              }
+            }
+            
+            
 }#End Test-Network
 Function Get-OfficeSoftwareProtectionPlatform {	
   [OutputType([string])]
@@ -450,10 +464,10 @@ foreach ($thing in $XmlDocument.Variables.installedsoftware.is)
 [bool]$script:failedQA = $false
 
 #Configure required Modules
-$sourceNugetExe = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+$sourceNugetExe = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'
 $targetNugetExe = "$rootPath\nuget.exe"
-Invoke-WebRequest $sourceNugetExe -OutFile $targetNugetExe
-Set-Alias nuget $targetNugetExe -Scope Global
+Invoke-WebRequest -Uri $sourceNugetExe -OutFile $targetNugetExe
+Set-Alias -Name nuget -Value $targetNugetExe -Scope Global
 
 If(Get-Module -ListAvailable -Name PowerShellGet){
     Write-Output -InputObject 'PowershellGet Configured'
@@ -469,12 +483,12 @@ if(Get-Module -ListAvailable -Name PowerShellGet){
 }#End Installing PSWindowsUpdate
 
 #Open a new session to run windows updates
-Write-Output -InputObject 'Starting Windows Updates in a new windows.`r'
+Write-Output -InputObject "Starting Windows Updates in a new windows.`r"
 Start-Process -FilePath Powershell.exe -ArgumentList {Get-Command -module PSWindowsUpdate;
     Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
     Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot -Verbose}
 
-Write-Output -InputObject 'Creating Report Log`r'
+Write-Output -InputObject "Creating Report Log`r"
 New-LogFile
 Start-CCleaner -m 0
 Write-Output -InputObject 'Retrieving drives and expanding.'
@@ -593,8 +607,6 @@ Send-Report
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Self Removal, must always be last line.
-#Remove-Item -Path $reportFilePath -Force
-Remove-Item -Path $(Get-Variable -Name MyInvocation).Value.PSScriptRoot -Force
 $action = New-ScheduledTaskAction -Execute Powershell.exe -Argument "Remove-Item 'C:\Users\User\Desktop\Automated-QA*' -Force"
 $setting = New-ScheduledTaskSettingsSet -Priority 5 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -StartWhenAvailable -WakeToRun
 $Time = Get-Date
