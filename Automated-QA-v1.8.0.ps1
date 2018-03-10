@@ -122,14 +122,14 @@ Function Get-Software {
         $64bit = Get-ItemProperty -Path HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
         Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
         Out-String
-        if ($64bit -eq ''){
+        if ([string]::IsNullOrEmpty($64bit)){
             Write-Output -InputObject "Checking 32bit registry for $app."
             $32bit = Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
             Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
             Out-String
             $32bit = $32bit.TrimEnd()
             Write-Log -text $32bit
-        }elseif($32bit -eq '') {
+        }elseif([string]::IsNullOrEmpty($32bit)) {
             Write-Log -text "$app Could not be found"
         }else{
             $64bit = $64bit.TrimEnd()
@@ -151,18 +151,23 @@ Function Test-DeviceDriver{
     }
 }#End Test-Drivers
 Function Expand-Drive{
-        $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
-        $drivesize = (Get-Partition -DriveLetter C).size
-         if($drivesize -eq $maxsize){
+        if(Test-Path C:\){
+          $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
+          $drivesize = (Get-Partition -DriveLetter C).size
+          if($drivesize -eq $maxsize){
             Write-Output -InputObject "$env:HOMEDRIVE\ Drive is already at maximum size"
-        }Else{
+          }Else{
             Write-Output -InputObject "$env:HOMEDRIVE\ Drive does not currently fill the Harddrive Expanding..."
             Resize-Partition -DriveLetter C -Size $maxsize
             Write-Output -InputObject "Successfully expanded 'C:\' Drive."
+          }
+          $maxsize = $maxsize/1024/1024/1024
+          $maxsize = [Math]::Round($maxsize)
+          Write-Log -text "C:\ is $($maxsize)GB"
+        }Else{
+          Write-Warning 'Failed to find C:\ please check for drive errors.'
+          Write-Log 'Failed to find C:\ please check for drive errors. '
         }
-        $maxsize = $maxsize/1024/1024/1024
-        $maxsize = [Math]::Round($maxsize)
-        Write-Log -text "C:\ is $($maxsize)GB"
 }#End Expand-Drive
 Function Open-InternetExplorer{
     param ([Parameter(Mandatory=$true)]
@@ -188,8 +193,10 @@ Function Open-InternetExplorer{
   
 }#End Start-Video
 Function New-LogFile{
-    ## File path for QA_Report
+    # File path for QA_Report
     $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
+    
+    #Populate System information as variables
     [string]$Model = WMIC ComputerSystem Get Model | Out-String
     $Model = $Model.Substring(5)
     $Model = $Model.Trim()
@@ -197,16 +204,18 @@ Function New-LogFile{
     $Manufacturer = $Manufacturer.Substring(12)
     $Manufacturer = $Manufacturer.Trim()
 
+    #Fetch date report was run
+    $today = Get-Date
 
-  $today = Get-Date
-
-  ## Delete file if it already exists
+  # Delete file if it already exists
   If (Test-Path -Path $reportFilePath) {
     Remove-Item -Path $reportFilePath
   }
 
-  Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
+  #Format report and print strings.
+  Add-Content -Oath $reportFilePath -Value 'Computer Quality Assurance script by Mitchell Beare.'
   Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
+  Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
   Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
   Add-Content -Path $reportFilePath -Value "System Brand and Model: $Manufacturer $Model"
 }#End New-LogFile
@@ -216,7 +225,12 @@ Function Write-Log {
   
 }#End Write-Log
 Function Get-RAM{
-    $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+    try{
+      $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+      }catch{
+        Write-Warning 'Failed to Retrieve RAM, Please check for fault.'
+        Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
+      }
     $ram = $ram/1024/1024/1024
     $ram = [Math]::Round($ram)
     Write-Log -text "There is $($ram)GB of RAM installed on this machine `n"
@@ -237,7 +251,7 @@ Function Test-Keyboard{
       $continue = Read-Host -Prompt 'Would you like to try again? Y/N'
       if($continue -eq 'n' -or $continue -eq 'N'){
         $script:failedQA = $true
-        $script:failreason = 'Keyboard test Failed'
+        $script:failreason = 'Keyboard test Failed.'
         Write-Log -text 'Keyboard test failed'
         $exit = $true
       }
@@ -449,10 +463,10 @@ Function Set-WindowsProductKey {
   Return $Errors
 }#End-Windows-ProductKey
 
-#Main
+#Main ================================================================================
 Test-Network
 
-#Configuration Variables
+#Configure Variables
 Read-ConfigFile
 [string]$videourl = $XmlDocument.Variables.videourl.InnerText
 [string[]]$installedsoftware = @()
@@ -460,7 +474,6 @@ foreach ($thing in $XmlDocument.Variables.installedsoftware.is)
 {
     $installedsoftware += $thing
 }
-#[string[]]$installedsoftware = $XmlDocument.Variables.installedsoftware
 [bool]$script:failedQA = $false
 
 #Configure required Modules
@@ -469,6 +482,7 @@ $targetNugetExe = "$rootPath\nuget.exe"
 Invoke-WebRequest -Uri $sourceNugetExe -OutFile $targetNugetExe
 Set-Alias -Name nuget -Value $targetNugetExe -Scope Global
 
+#Test for used librarys and install if not found
 If(Get-Module -ListAvailable -Name PowerShellGet){
     Write-Output -InputObject 'PowershellGet Configured'
 }Else {
@@ -488,18 +502,25 @@ Start-Process -FilePath Powershell.exe -ArgumentList {Get-Command -module PSWind
     Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
     Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot -Verbose}
 
+#Create and format QA Report
 Write-Output -InputObject "Creating Report Log`r"
 New-LogFile
-Start-CCleaner -m 0
+
 Write-Output -InputObject 'Retrieving drives and expanding.'
 Expand-Drive
-Write-Output -InputObject 'Retrieving Installed Physical Memory'
+
+Write-Output -InputObject 'Retrieving Installed Physical Memory.'
 Get-RAM
-Write-Output -InputObject 'Configuring OEM Info'
+Write-Output -InputObject 'Starting CCleaner Quietly.'
+Start-CCleaner -m 0
+
+Write-Output -InputObject 'Configuring OEM Information.'
 Set-ManufacturerInfo
 Set-ComputerIcon
+
 Write-Output -InputObject 'Contacting Registry and checking for Software'
 Get-Software -installedsoftware $installedsoftware
+
 Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output -InputObject 'Setting Volume to maximum and testing'
@@ -521,7 +542,7 @@ Test-DeviceDriver
 #Activate Windows and Office if no Errors found.
 #Failed if updates won't run
 #Sound or Keyboard are fails
-if($failedQA -ne $false){
+if($script:failedQA -ne $true){
   [string]$OfficeProductKey
   [string]$WindowsProductKey
   [switch]$ActivateOffice
@@ -597,7 +618,7 @@ if($failedQA -ne $false){
     Write-Host 'Failed to Activate'-ForegroundColor Red
   }
 }Else{
-  Write-Host "Test failed on $script:failreason"
+  Write-Log "Test failed on $script:failreason"
   #Why Test Failed
 }#End Activating Windows
 
