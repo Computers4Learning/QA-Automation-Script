@@ -8,6 +8,10 @@
     2018
 #>
 
+#Generate Form
+
+$
+
 #Mark: Iniatialise
 $ErrorActionPreference = 'Inquire'
 
@@ -114,7 +118,7 @@ Function Read-ConfigFile {
     Remove-PSDrive -Name temp
 }#End Read-ConfigFile
 Function Get-Software {
-    Param([Parameter(Mandatory=$true)]
+    Param([Parameter(Mandatory=$true,HelpMessage="A Comma Seperated list of Softwares to search for.")]
     [string[]]$installedsoftware)
     
     Foreach($app in $installedsoftware){
@@ -122,18 +126,18 @@ Function Get-Software {
         $64bit = Get-ItemProperty -Path HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | 
         Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
         Out-String
-        if ([string]::IsNullOrEmpty($64bit)){
+        if ([string]::IsNullOrEmpty($64bit )){
             Write-Output -InputObject "Checking 32bit registry for $app."
             $32bit = Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | 
             Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
             Out-String
             $32bit = $32bit.TrimEnd()
-            Write-Log -text $32bit
+            Write-log -text $32bit
         }elseif([string]::IsNullOrEmpty($32bit)) {
-            Write-Log -text "$app Could not be found"
+            Write-log -text "$app Could not be found"
         }else{
             $64bit = $64bit.TrimEnd()
-            Write-Log -text $64bit
+            Write-log -text $64bit
         }
     }
 }#End Get-Software
@@ -143,15 +147,15 @@ Function Test-DeviceDriver{
     Where-Object {$_.ConfigManagerErrorCode -gt 0 } |Select-Object -Property Name,DeviceID,ConfigManagerErrorCode | Out-String
 
     if($null -eq $missingdrivers){
-      Write-Log -text ('No Device Drivers are Missing on this machine.')
+      Write-log -text ('No Device Drivers are Missing on this machine.')
     }else{
       ForEach($missingdrive in $missingdrivers){
-      Write-Log -text ("The drivers were not found for `n $missingdrive")
+      Write-log -text ("The drivers were not found for `n $missingdrive")
       }
     }
 }#End Test-Drivers
 Function Expand-Drive{
-        if(Test-Path C:\){
+        if(Test-Path -Path C:\){
           $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
           $drivesize = (Get-Partition -DriveLetter C).size
           if($drivesize -eq $maxsize){
@@ -163,14 +167,14 @@ Function Expand-Drive{
           }
           $maxsize = $maxsize/1024/1024/1024
           $maxsize = [Math]::Round($maxsize)
-          Write-Log -text "C:\ is $($maxsize)GB"
+          Write-log -text "C:\ is $($maxsize)GB"
         }Else{
-          Write-Warning 'Failed to find C:\ please check for drive errors.'
-          Write-Log 'Failed to find C:\ please check for drive errors. '
+          Write-Warning -Message 'Failed to find C:\ please check for drive errors.'
+          Write-Log -text 'Failed to find C:\ please check for drive errors. '
         }
 }#End Expand-Drive
 Function Open-InternetExplorer{
-    param ([Parameter(Mandatory=$true)]
+    param ([Parameter(Mandatory=$true,HelpMessage="Url Internet Explorer opens to.")]
            [string]$videourl)
   $IE = new-object -ComObject internetexplorer.application
   $IE.navigate2($videourl)
@@ -213,7 +217,7 @@ Function New-LogFile{
   }
 
   #Format report and print strings.
-  Add-Content -Oath $reportFilePath -Value 'Computer Quality Assurance script by Mitchell Beare.'
+  Add-Content -Path $reportFilePath -Value 'Computer Quality Assurance script by Mitchell Beare.'
   Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
   Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
   Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
@@ -228,12 +232,12 @@ Function Get-RAM{
     try{
       $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
       }catch{
-        Write-Warning 'Failed to Retrieve RAM, Please check for fault.'
+        Write-Warning -Message 'Failed to Retrieve RAM, Please check for fault.'
         Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
       }
     $ram = $ram/1024/1024/1024
     $ram = [Math]::Round($ram)
-    Write-Log -text "There is $($ram)GB of RAM installed on this machine `n"
+    Write-log -text "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
 Function Test-Keyboard{
   $teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
@@ -243,7 +247,7 @@ Function Test-Keyboard{
     $testinput = Read-Host -Prompt "$teststring"
     if ($teststring -eq $testinput){
       Write-Output -InputObject 'Keyboard test was successful continuing'
-      Write-Log -text 'Keyboard test was successful'
+      Write-log -text 'Keyboard test was successful'
       $exit = $true
     }else{
       Write-Output -InputObject ' '
@@ -259,22 +263,22 @@ Function Test-Keyboard{
   }While($exit -eq $false)
 }#End Test-Keyboard
 Function Start-CCleaner {
-    param([Parameter(Mandatory=$true)]
+    param([Parameter(Mandatory=$true,HelpMessage="Switch to control whether CC Cleaner is silent or not.")]
     [int]$m)
     if($m -eq 0){
         Write-Output -InputObject 'Starting CCleaner quietly and running'
         Try{
             Start-Process -FilePath CCleaner.exe -ArgumentList /AUTO
-            Write-Log -text ('CCleaner has run and cleaned the machine.')
+            Write-log -text ('CCleaner has run and cleaned the machine.')
             }Catch{
-            Write-Log -text ('CCleaner was not found or failed to launch.')
+            Write-log -text ('CCleaner was not found or failed to launch.')
         }
     }else{
         Try{
             Start-Process -FilePath CCleaner.exe -ArgumentList /REGISTRY
-            Write-Log -text ('CCleaner has been opened to perform a registry clean.')
+            Write-log -text ('CCleaner has been opened to perform a registry clean.')
         }Catch{
-            Write-Log -text ('CCleaner was not found or failed to launch.')
+            Write-log -text ('CCleaner was not found or failed to launch.')
      }
   }
 }#End Start-CCleaner
@@ -528,7 +532,7 @@ Try{
     [audio]::Mute = $false
     [audio]::Volume = 0.8
 }Catch{
-    Write-Log -text 'No Audio Device could be found'
+    Write-log -text 'No Audio Device could be found'
     Write-Host -ForegroundColor Red 'No Audio Device could be found'
 }
 Open-InternetExplorer -videourl $videourl
@@ -550,8 +554,8 @@ if($script:failedQA -ne $true){
 
   Clear-Host
   $ErrorReport = $false
-  $ActivateOffice = Read-Host -Prompt 'Please enter Office Activation Code:'
-  $ActivateWindows = Read-Host -Prompt 'Please enter Windows Activation Code:'
+  $ActivateOffice = Read-Host -Prompt 'Please enter Office Activation Code'
+  $ActivateWindows = Read-Host -Prompt 'Please enter Windows Activation Code'
   #Find OSPP.vbs file
   $OSPP = Get-OfficeSoftwareProtectionPlatform
 
@@ -618,7 +622,7 @@ if($script:failedQA -ne $true){
     Write-Host 'Failed to Activate'-ForegroundColor Red
   }
 }Else{
-  Write-Log "Test failed on $script:failreason"
+  Write-Log -text "Test failed on $script:failreason"
   #Why Test Failed
 }#End Activating Windows
 
