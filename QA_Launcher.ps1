@@ -6,6 +6,7 @@ Function Write-Console{
     Param ([string]$test)
     $test = $test + "`n"
     $WPFOutputtxtbox.Text += $test
+    $Form.Refresh()
 }#End Write-Console
 
 Function Test-Network{
@@ -43,17 +44,7 @@ Function Enter-Main {
 
   Remove-PSDrive -Name temp
   Start-Process -FilePath 'C:\Users\User\Desktop\Automated-QA*' -Verb runAs
-  IF(Get-ScheduledTask | Where-Object TaskName -Match 'Script Removal'){
-    Unregister-ScheduledTask -TaskName 'Script Removal' -Confirm:$false
-  }
-
-  $action = New-ScheduledTaskAction -Execute Powershell.exe -Argument "Remove-Item 'C:\Users\User\Desktop\QA_Launcher.exe' -Force"
-  $setting = New-ScheduledTaskSettingsSet -Priority 5 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -StartWhenAvailable -WakeToRun
-  $Time = Get-Date
-  $Time = $Time.AddSeconds(7)
-  $trigger = New-ScheduledTaskTrigger -At $Time -Once 
-  $User = "$env:USERDOMAIN\$env:USERNAME"
-  Register-ScheduledTask -TaskName 'Script Removal' -User $User -Action $action -Trigger $trigger -Settings $setting
+  $Form.Close()
 }
 
 #Setup the  View=============================================================
@@ -89,7 +80,7 @@ catch{Write-Warning "Unable to parse XML, with error: $($Error[0])`n Ensure that
 #Setup the controller=================================================
 
 #Read through XAML and activate components.
-$xaml.SelectNodes("//*[@Name]") | ForEach-Object{"trying item $($_.Name)";
+$xaml.SelectNodes("//*[@Name]") | ForEach-Object{
     try {Set-Variable -Name "WPF$($_.Name)" -Value $Form.FindName($_.Name) -ErrorAction Stop}
     catch{throw}
     }
@@ -99,9 +90,5 @@ $Form.Add_ContentRendered({
     Enter-Main
 })
 
-
-
-
 #Show the form
-Write-Host $test
 $null = $Form.ShowDialog()

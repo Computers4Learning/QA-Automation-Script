@@ -8,10 +8,6 @@
     2018
 #>
 
-#Generate Form
-
-$
-
 #Mark: Iniatialise
 $ErrorActionPreference = 'Inquire'
 
@@ -41,6 +37,7 @@ Function Connect-NativeHelperType{
     }
 }#End Connect-NativeHelperType
 Function Connect-AudoController{
+    [CmdletBinding()]
     Param()
     Add-Type -TypeDefinition @'
     using System.Runtime.InteropServices;
@@ -91,6 +88,99 @@ Connect-NativeHelperType
 Connect-AudoController
 
 #Mark: Functions
+
+Function Check-Key{
+  Param([String]$key)
+  if($key -match '^([a-zA-Z0-9]{5}-?){5}' -and $key.Length -eq 29){
+    Return $true
+  }Else{
+    Return $false
+  }
+}
+Function Activate-Windows{
+  $finished = $false
+  [string]$response = Read-Host "Do you need to activate Windows? `n Y/N"
+  if($response -eq 'Y' -Or $response -eq 'y'){
+    Do{
+      $name = $env:COMPUTERNAME
+      $key = Read-Host -Prompt "Please enter Windows activation key in form XXXX-XXXX-XXXX-XXXX `n"
+      $key = $key.Trim()
+      if(Check-key $key){
+        Write-Output -InputObject 'Attempting to activte windows.'
+        $service = Get-wmiobject -class SoftwareLicensingService -ComputerName $name 
+        $service.InstallProductKey($key) | Out-Null
+        $service.RefreshLicenseStatus() | Out-Null
+        $finished = $true
+      }Else{
+        Write-Error 'Key was typed incorrectly please try again.'
+      
+      }
+    }While($finished = $false )
+  }
+}#End Activate-Windows
+Function Test-WinActivation{
+    $status = Get-Ciminstance -ClassName SoftwareLicensingProduct | Where-Object{$_.PartialProductKey} | Select-Object -ExpandProperty LicenseStatus
+    if($status -eq 1){
+        Return $true
+    }Else{
+        Return $false
+    }
+}#End Test-WinActivation
+Function Activate-Office{
+  $finished = $false
+  [string]$response = Read-Host "Do you need to activate Office? `n Y/N"
+  if($response -eq 'Y' -Or $response -eq 'y'){
+    $name = $env:COMPUTERNAME
+    $key = Read-Host -Prompt "Please enter Office activation key in form XXXX-XXXX-XXXX-XXXX `n"
+    $key = $key.Trim()
+    if(Check-Key $key){
+      Write-Output -InputObject 'Attempting to activte Office.'
+      $service = Get-wmiobject -class OfficeSoftwareProtectionService -ComputerName $name 
+      $service.InstallProductKey($key) | Out-Null
+      cscript "C:\Program Files\Microsoft Office\Office14\OSPP.vbs" /act
+      $finished = $true
+    }Else{
+      Write-Error 'Key as typed incorrectly please try again.'
+
+    }
+  }
+}#End Activate-Office
+Function Test-OfficeActivation{
+C:\Windows\System32\cscript.exe 'C:\Program Files (x86)\Microsoft Office\Office15\OSPP.VBS' /dstatus | Out-File $env:temp\actstat.txt
+ 
+$ActivationStatus = $($Things = $(Get-Content $env:temp\actstat.txt -raw) `
+                            -replace ":"," =" `
+                            -split "---------------------------------------" `
+                            -notmatch "---Processing--------------------------" `
+                            -notmatch "---Exiting-----------------------------"
+                       $Things | ForEach-Object {
+                       $Props = ConvertFrom-StringData -StringData ($_ -replace '\n-\s+')
+                       New-Object psobject -Property $Props  | Select-Object "SKU ID", "LICENSE NAME", "LICENSE DESCRIPTION", "LICENSE STATUS"
+        })
+ 
+$Var = "Office Activated "
+for ($i=0; $i -le $ActivationStatus.Count-2; $i++) {
+    if ($ActivationStatus[$i]."LICENSE STATUS" -eq "---LICENSED---") {
+        $Var = $Var + "OK "
+        }
+ 
+    else {
+        $Var = $Var + "Bad "
+        }
+        }
+ 
+If ($Var -like "*Bad*") {
+ 
+    echo "Office Not Activated"
+}
+else
+{
+    echo "Office Activated"
+}
+
+
+
+}#End Test-OfficeActivation
 Function Read-ConfigFile {
   #This function reads the server side config file and loads variables into memory for use. 
 
@@ -102,7 +192,7 @@ Function Read-ConfigFile {
 
     #Create a drive with the FileServer
     Try{
-        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds
+        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds | Out-Null
     }Catch{
         Write-Output -InputObject 'Failed to Contact FileServer to update QA-Script please contact workshop manager.'
     }
@@ -118,7 +208,7 @@ Function Read-ConfigFile {
     Remove-PSDrive -Name temp
 }#End Read-ConfigFile
 Function Get-Software {
-    Param([Parameter(Mandatory=$true)]
+    Param([Parameter(Mandatory=$true,HelpMessage='A Comma Seperated list of Softwares to search for.')]
     [string[]]$installedsoftware)
     
     Foreach($app in $installedsoftware){
@@ -132,12 +222,12 @@ Function Get-Software {
             Select-Object -Property DisplayName, DisplayVersion | Where-Object -FilterScript {$_.DisplayName -like "*$app*"} | 
             Out-String
             $32bit = $32bit.TrimEnd()
-            Write-log $32bit
+            Write-log -text $32bit
         }elseif([string]::IsNullOrEmpty($32bit)) {
-            Write-log "$app Could not be found"
+            Write-log -text "$app Could not be found"
         }else{
             $64bit = $64bit.TrimEnd()
-            Write-log $64bit
+            Write-log -text $64bit
         }
     }
 }#End Get-Software
@@ -147,15 +237,15 @@ Function Test-DeviceDriver{
     Where-Object {$_.ConfigManagerErrorCode -gt 0 } |Select-Object -Property Name,DeviceID,ConfigManagerErrorCode | Out-String
 
     if($null -eq $missingdrivers){
-      Write-log ('No Device Drivers are Missing on this machine.')
+      Write-log -text ('No Device Drivers are Missing on this machine.')
     }else{
       ForEach($missingdrive in $missingdrivers){
-      Write-log ("The drivers were not found for `n $missingdrive")
+      Write-log -text ("The drivers were not found for `n $missingdrive")
       }
     }
 }#End Test-Drivers
 Function Expand-Drive{
-        if(Test-Path C:\){
+        if(Test-Path -Path C:\){
           $maxsize = (Get-PartitionSupportedSize -DriveLetter C).sizemax
           $drivesize = (Get-Partition -DriveLetter C).size
           if($drivesize -eq $maxsize){
@@ -167,14 +257,14 @@ Function Expand-Drive{
           }
           $maxsize = $maxsize/1024/1024/1024
           $maxsize = [Math]::Round($maxsize)
-          Write-log "C:\ is $($maxsize)GB"
+          Write-log -text "C:\ is $($maxsize)GB"
         }Else{
-          Write-Warning 'Failed to find C:\ please check for drive errors.'
-          Write-Log 'Failed to find C:\ please check for drive errors. '
+          Write-Warning -Message 'Failed to find C:\ please check for drive errors.'
+          Write-Log -text 'Failed to find C:\ please check for drive errors. '
         }
 }#End Expand-Drive
 Function Open-InternetExplorer{
-    param ([Parameter(Mandatory=$true)]
+    param ([Parameter(Mandatory=$true,HelpMessage='Url Internet Explorer opens to.')]
            [string]$videourl)
   $IE = new-object -ComObject internetexplorer.application
   $IE.navigate2($videourl)
@@ -184,14 +274,14 @@ Function Open-InternetExplorer{
   $check = $false
   Do{
     if($input -eq 'Y' -or $input -eq 'y'){
-      Write-Log 'Audio is functioning correctly.'
+      Write-Log -text 'Audio is functioning correctly.'
       $check = $true
     }Elseif($input -eq 'N' -or $input -eq 'n'){
       $script:failedQA = $true
-      Write-Log 'Audio failed to be heard please check speakers and audio drivers.'
+      Write-Log -text 'Audio failed to be heard please check speakers and audio drivers.'
       $check = $true
     }Else{
-      Write-Log 'Invalid input detected'
+      Write-Log -text 'Invalid input detected'
     }
   }While($check -eq $false)
   
@@ -224,6 +314,7 @@ Function New-LogFile{
   Add-Content -Path $reportFilePath -Value "System Brand and Model: $Manufacturer $Model"
 }#End New-LogFile
 Function Write-Log {
+  [CmdletBinding()]
   Param([string]$text)
   Add-Content -Path $reportFilePath -Value "`n$($text)"
   
@@ -232,12 +323,12 @@ Function Get-RAM{
     try{
       $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
       }catch{
-        Write-Warning 'Failed to Retrieve RAM, Please check for fault.'
-        Write-Log 'Failed to Retrieve RAM, please check for fault.'
+        Write-Warning -Message 'Failed to Retrieve RAM, Please check for fault.'
+        Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
       }
     $ram = $ram/1024/1024/1024
     $ram = [Math]::Round($ram)
-    Write-log "There is $($ram)GB of RAM installed on this machine `n"
+    Write-log -text "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
 Function Test-Keyboard{
   $teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
@@ -247,7 +338,7 @@ Function Test-Keyboard{
     $testinput = Read-Host -Prompt "$teststring"
     if ($teststring -eq $testinput){
       Write-Output -InputObject 'Keyboard test was successful continuing'
-      Write-log 'Keyboard test was successful'
+      Write-log -text 'Keyboard test was successful'
       $exit = $true
     }else{
       Write-Output -InputObject ' '
@@ -263,22 +354,22 @@ Function Test-Keyboard{
   }While($exit -eq $false)
 }#End Test-Keyboard
 Function Start-CCleaner {
-    param([Parameter(Mandatory=$true)]
+    param([Parameter(Mandatory=$true,HelpMessage='Switch to control whether CC Cleaner is silent or not.')]
     [int]$m)
     if($m -eq 0){
         Write-Output -InputObject 'Starting CCleaner quietly and running'
         Try{
             Start-Process -FilePath CCleaner.exe -ArgumentList /AUTO
-            Write-log ('CCleaner has run and cleaned the machine.')
+            Write-log -text ('CCleaner has run and cleaned the machine.')
             }Catch{
-            Write-log ('CCleaner was not found or failed to launch.')
+            Write-log -text ('CCleaner was not found or failed to launch.')
         }
     }else{
         Try{
             Start-Process -FilePath CCleaner.exe -ArgumentList /REGISTRY
-            Write-log ('CCleaner has been opened to perform a registry clean.')
+            Write-log -text ('CCleaner has been opened to perform a registry clean.')
         }Catch{
-            Write-log ('CCleaner was not found or failed to launch.')
+            Write-log -text ('CCleaner was not found or failed to launch.')
      }
   }
 }#End Start-CCleaner
@@ -340,7 +431,7 @@ Function Send-Report{
         Copy-Item -Path $reportFilePath -Destination temp:\
         Remove-PSDrive -Name temp
     }Catch{
-        Write-Warning -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
+        Write-Error -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
 Function Test-Network{
@@ -358,7 +449,7 @@ Function Test-Network{
             if($connected = $true){
             Write-Output -InputObject 'Checking for C4L Fileserver'
               if(Test-Connection -ComputerName 192.168.1.18 -Count 1 -Quiet){
-                Return 1
+                Write-Output -InputObject "Successfully connected to server `n"
               }Else{
                 $fileserver = Read-Host -Prompt "Fileserver not found at $fileserver`r`nPlease Enter server ip"
               
@@ -367,107 +458,9 @@ Function Test-Network{
             
             
 }#End Test-Network
-Function Get-OfficeSoftwareProtectionPlatform {	
-  [OutputType([string])]
-  param ()
-	
-  $File = Get-ChildItem -Path $env:ProgramFiles"\Microsoft Office" -Filter 'OSPP.VBS' -Recurse
-  If (($null -eq $File) -or ($File -eq '')) {
-    $File = Get-ChildItem -Path ${env:ProgramFiles(x86)}"\Microsoft Office" -Filter 'OSPP.VBS' -Recurse
-  }
-  $File = $File.FullName
-  Return $File
-}#End Get-OfficeSoftwareProtectionPlatform
-Function Get-SoftwareLicenseManager {
-  [OutputType([string])]
-  param ()
-	
-  $File = Get-ChildItem -Path $env:windir"\system32" | Where-Object { $_.Name -eq 'slmgr.vbs' }
-  $File = $File.FullName
-  Return $File
-}#End Get-SoftwareLicenseManager
-Function Invoke-OfficeActivation {
-  [OutputType([bool])]
-  param
-  (
-    [ValidateNotNullOrEmpty()][string]$OSPP
-  )
-	
-  $Errors = $false
-  Write-Host 'Activate Microsoft Office.....' -NoNewline
-  $Executable = $env:windir + '\System32\cscript.exe'
-  $Switches = [char]34 + $OSPP + [char]34 + [char]32 + '/act'
-  If ((Test-Path -Path $Executable) -eq $true) {
-    $ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
-  }
-  If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
-    Write-Host 'Success' -ForegroundColor Yellow
-  } else {
-    Write-Host 'Failed with error code'$ErrCode -ForegroundColor Red
-    $Errors = $true
-  }
-  Return $Errors
-}#End Invoke-OfficeActivation
-Function Invoke-WindowsActivation {
-  param([ValidateNotNullOrEmpty()][string]$SLMGR)
-	
-  $Errors = $false
-  Write-Host 'Activate Microsoft Windows.....' -NoNewline
-  $Executable = $env:windir + '\System32\cscript.exe'
-  $Switches = [char]34 + $SLMGR + [char]34 + [char]32 + '-ato'
-  If ((Test-Path -Path $Executable) -eq $true) {
-    $ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
-  }
-  If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
-    Write-Host 'Success' -ForegroundColor Yellow
-  } else {
-    Write-Host 'Failed with error code'$ErrCode -ForegroundColor Red
-    $Errors = $true
-  }
-  Return $Errors
-}#End-WindowsActivation
-Function Set-OfficeProductKey {
-    [OutputType([bool])]
-  param([ValidateNotNullOrEmpty()][string]$OSPP)
-	
-  $Errors = $false
-  Write-Host 'Set Microsoft Office Product Key.....' -NoNewline
-  $Executable = $env:windir + '\System32\cscript.exe'
-  $Switches = [char]34 + $OSPP + [char]34 + [char]32 + '/inpkey:' + $OfficeProductKey
-  If ((Test-Path -Path $Executable) -eq $true) {
-    $ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
-  }
-  If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
-    Write-Host 'Success' -ForegroundColor Yellow
-  } else {
-    Write-Host 'Failed with error code'$ErrCode -ForegroundColor Red
-    $Errors = $true
-  }
-  Return $Errors
-}#Set-OfficerProductKey
-Function Set-WindowsProductKey {
-  [CmdletBinding()][OutputType([bool])]
-  param(
-    [ValidateNotNullOrEmpty()][string]$SLMGR
-  )
-	
-  $Errors = $false
-  Write-Host 'Set Microsoft Windows Product Key.....' -NoNewline
-  $Executable = $env:windir + '\System32\cscript.exe'
-  $Switches = [char]34 + $SLMGR + [char]34 + [char]32 + '/ipk' + [char]32 + $WindowsProductKey
-  If ((Test-Path -Path $Executable) -eq $true) {
-    $ErrCode = (Start-Process -FilePath $Executable -ArgumentList $Switches -Wait -WindowStyle Minimized -Passthru).ExitCode
-  }
-  If (($ErrCode -eq 0) -or ($ErrCode -eq 3010)) {
-    Write-Host 'Success' -ForegroundColor Yellow
-  } else {
-    Write-Host 'Failed with error code'$ErrCode -ForegroundColor Red
-    $Errors = $true
-  }
-  Return $Errors
-}#End-Windows-ProductKey
 
 #Main ================================================================================
+#Remove-Item 'C:\Users\User\Desktop\QA_Launcher.exe' -Force #Enable if QA launcher no longer self deletes
 Test-Network
 
 #Configure Variables
@@ -496,18 +489,18 @@ If(Get-Module -ListAvailable -Name PowerShellGet){
 if(Get-Module -ListAvailable -Name PowerShellGet){
     Write-Output -InputObject 'WindowsUpdates Connected'
 }Else{
-    Write-Output -InputObject 'Connecting to Windows Updates '
+    Write-Output -InputObject 'Connecting to Windows Updates'
     Install-Module -Name PSWindowsUpdate -Force
 }#End Installing PSWindowsUpdate
 
 #Open a new session to run windows updates
-Write-Output -InputObject "Starting Windows Updates in a new windows.`r"
+Write-Output -InputObject "Starting Windows Updates in a new windows.`n"
 Start-Process -FilePath Powershell.exe -ArgumentList {Get-Command -module PSWindowsUpdate;
     Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d;
     Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot -Verbose}
 
 #Create and format QA Report
-Write-Output -InputObject "Creating Report Log`r"
+Write-Output -InputObject "Creating Report Log `n"
 New-LogFile
 
 Write-Output -InputObject 'Retrieving drives and expanding.'
@@ -515,7 +508,6 @@ Expand-Drive
 
 Write-Output -InputObject 'Retrieving Installed Physical Memory.'
 Get-RAM
-Write-Output -InputObject 'Starting CCleaner Quietly.'
 Start-CCleaner -m 0
 
 Write-Output -InputObject 'Configuring OEM Information.'
@@ -529,11 +521,11 @@ Write-Output -InputObject 'Begginning Keyboard Test.'
 Test-Keyboard
 Write-Output -InputObject 'Setting Volume to maximum and testing'
 Try{
-    [audio]::Mute = $false
+    [audio]::Mute = $false 
     [audio]::Volume = 0.8
 }Catch{
-    Write-log 'No Audio Device could be found'
-    Write-Host -ForegroundColor Red 'No Audio Device could be found'
+    Write-log -text 'No Audio Device could be found'
+    Write-Error -Message 'No Audio Device could be found'
 }
 Open-InternetExplorer -videourl $videourl
 Start-CCleaner -m 1
@@ -543,92 +535,30 @@ Read-Host -Prompt 'Press any key to continue.'
 Write-Output -InputObject 'Checking for Missing Device Drivers'
 Test-DeviceDriver
 
-#Activate Windows and Office if no Errors found.
-#Failed if updates won't run
-#Sound or Keyboard are fails
 if($script:failedQA -ne $true){
-  [string]$OfficeProductKey
-  [string]$WindowsProductKey
-  [switch]$ActivateOffice
-  [switch]$ActivateWindows
-
-  Clear-Host
-  $ErrorReport = $false
-  $ActivateOffice = Read-Host -Prompt 'Please enter Office Activation Code:'
-  $ActivateWindows = Read-Host -Prompt 'Please enter Windows Activation Code:'
-  #Find OSPP.vbs file
-  $OSPP = Get-OfficeSoftwareProtectionPlatform
-
-  #Assign Microsoft Office Product Key
-  #Check if a value was passed to $OfficeProductKey
-  If (($null -ne $OfficeProductKey) -and ($OfficeProductKey -ne '')) {
-    #Check if OSPP.vbs was found
-    If (($null -ne $OSPP) -and ($OSPP -ne '')) {
-      #Assign Microsoft Office Product Key
-      $Errors = Set-OfficeProductKey -OSPP $OSPP
-      If ($ErrorReport -eq $false) {
-        $ErrorReport = $Errors
-      }
-    } else {
-      Write-Host 'Office Software Protection Platform not found to set the Microsoft Office Product Key' -ForegroundColor Red
-    }
+  Activate-Windows
+  if(Test-WinActivation){
+    Write-Output 'Windows successfully activated.'
+    Write-Log 'Windows is successfully activated.'
+  }Else{
+    Write-Output 'Windows failed to automatically activate, please activate manually'
+    Write-Log 'Windows failed to automatically activated, promtped QA technician to activate.'
+    Start-Process ms-settings:activation
   }
-  #Check if $ActivateOffice was selected
-  If ($ActivateOffice.IsPresent) {
-    #Check if OSPP.vbs was found
-    If (($null -ne $OSPP) -and ($OSPP -ne '')) {
-      #Activate Microsoft Office
-      $Errors = Invoke-OfficeActivation -OSPP $OSPP
-      If ($ErrorReport -eq $false) {
-        $ErrorReport = $Errors
-      }
-    } else {
-      Write-Host 'Office Software Protection Platform not found to activate Microsoft Office' -ForegroundColor Red
-    }
-  }
-
-  #Check if a value was passed to $WindowsProductKey
-  If (($null -ne $WindowsProductKey) -and ($WindowsProductKey -ne '')) {
-    #Find SLMGR.VBS
-    $SLMGR = Get-SoftwareLicenseManager
-    #Check if SLMGR.VBS was found
-    If (($null -ne $SLMGR) -and ($SLMGR -ne '')) {
-      #Assign Windows Product Key
-      $Errors = Set-WindowsProductKey -SLMGR $SLMGR
-      If ($ErrorReport -eq $false) {
-        $ErrorReport = $Errors
-      }
-    } else {
-      Write-Host 'Software licensing management tool not found to set the Microsoft Windows Product Key' -ForegroundColor Red
-    }
-  }
-  #Check if $ActivateWindows was selected
-  If ($ActivateWindows.IsPresent) {
-    #Find SLMGR.VBS
-    $SLMGR = Get-SoftwareLicenseManager
-    #Check if SLMGR.VBS was found
-    If (($null -ne $SLMGR) -and ($SLMGR -ne '')) {
-      #Activate Micosoft Windows
-      $Errors = Invoke-WindowsActivation -SLMGR $SLMGR
-      If ($ErrorReport -eq $false) {
-        $ErrorReport = $Errors
-      }
-    } else {
-      Write-Host 'Software licensing management tool not found to activate Microsoft Windows' -ForegroundColor Red
-    }
-  }
-  #Exit with an error code 1 if an error was encountered
-  If ($ErrorReport -eq $true) {
-    Write-Host 'Failed to Activate'-ForegroundColor Red
-  }
-}Else{
-  Write-Log "Test failed on $script:failreason"
-  #Why Test Failed
-}#End Activating Windows
+  Activate-Office
+}
 
 #Mark: Finalise
-Write-Output -InputObject 'Send a copy of QA-Report to the server.'
-Send-Report
+Write-Log -text 'QA Script finished sending copy of report to server aqnd rebooting machine.'
+
+Write-Output -InputObject 'Sending a copy of QA-Report to the server.'
+Try{
+  Send-Report
+  Write-Output -InputObject 'Successfully send QA-Report to server.'
+}
+Catch{
+  Write-Warning -Message 'Failed to send QA-Report to server.'
+  }
 Read-Host -Prompt 'QA Complete Computer will now Restart.'
 
 #Self Removal, must always be last line.
