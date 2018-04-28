@@ -292,12 +292,8 @@ Function New-LogFile{
     $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
     
     #Populate System information as variables
-    [string]$Model = WMIC ComputerSystem Get Model | Out-String
-    $Model = $Model.Substring(5)
-    $Model = $Model.Trim()
-    [string]$Manufacturer = WMIC ComputerSystem Get Manufacturer | Out-String
-    $Manufacturer = $Manufacturer.Substring(12)
-    $Manufacturer = $Manufacturer.Trim()
+    $Model = (Get-WmiObject -Class win32_computersystem).Model
+    $Manufacturer = (Get-WmiObject -Class win32_computersystem).Manufacturer
 
     #Fetch date report was run
     $today = Get-Date
@@ -308,7 +304,8 @@ Function New-LogFile{
   }
 
   #Format report and print strings.
-  Add-Content -Path $reportFilePath -Value 'Computer Quality Assurance script by Mitchell Beare.'
+  Add-Content -Path $reportFilePath -Value 'Computer Quality Assurance Script'
+  Add-Content -Path $reportFilePath -Value "Author Mitchell Beare. `n"
   Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
   Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
   Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
@@ -322,12 +319,12 @@ Function Write-Log {
 }#End Write-Log
 Function Get-RAM{
     try{
-      $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+      $ram = (Get-WmiObject -Class win32_pysicalMemory).capacity
       }catch{
         Write-Warning -Message 'Failed to Retrieve RAM, Please check for fault.'
         Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
       }
-    $ram = $ram/1024/1024/1024
+    $ram = $ram/1073741824
     $ram = [Math]::Round($ram)
     Write-log -text "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
@@ -565,9 +562,8 @@ Read-Host -Prompt 'QA Complete Computer will now Restart.'
 #Self Removal, must always be last line.
 $action = New-ScheduledTaskAction -Execute Powershell.exe -Argument "Remove-Item 'C:\Users\User\Desktop\Automated-QA*' -Force"
 $setting = New-ScheduledTaskSettingsSet -Priority 5 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -StartWhenAvailable -WakeToRun
-$Time = Get-Date
-$Time = $Time.AddSeconds(7)
+$Time = (Get-Date).AddSeconds(7)
 $trigger = New-ScheduledTaskTrigger -At $Time -Once 
 $User = "$env:USERDOMAIN\$env:USERNAME"
-Register-ScheduledTask -TaskName 'Script Removal' -User $User -Action $action -Trigger $trigger -Settings $setting
+Register-ScheduledTask -TaskName 'QA Removal' -User $User -Action $action -Trigger $trigger -Settings $setting
 Restart-Computer -Force
