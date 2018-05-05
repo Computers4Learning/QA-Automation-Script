@@ -9,7 +9,7 @@
 #>
 
 #Mark: Iniatialise
-$ErrorActionPreference = 'Inquire'
+$ErrorActionPreference = 'SilentlyContinue'
 
 #Mark: API Connections
 Function Connect-NativeHelperType{
@@ -90,6 +90,7 @@ Connect-AudoController
 #Mark: Functions
 
 Function Check-Key{
+  [CmdletBinding()]
   Param([String]$key)
   if($key -match '^([a-zA-Z0-9]{5}-?){5}' -and $key.Length -eq 29){
     Return $true
@@ -99,20 +100,20 @@ Function Check-Key{
 }
 Function Activate-Windows{
   $finished = $false
-  [string]$response = Read-Host "Do you need to activate Windows? `n Y/N"
+  [string]$response = Read-Host -Prompt "Do you need to activate Windows? `n Y/N"
   if($response -eq 'Y' -Or $response -eq 'y'){
     Do{
       $name = $env:COMPUTERNAME
       $key = Read-Host -Prompt "Please enter Windows activation key in form XXXX-XXXX-XXXX-XXXX `n"
       $key = $key.Trim()
-      if(Check-key $key){
+      if(Check-key -key $key){
         Write-Output -InputObject 'Attempting to activte windows.'
         $service = Get-wmiobject -class SoftwareLicensingService -ComputerName $name 
-        $service.InstallProductKey($key) | Out-Null
-        $service.RefreshLicenseStatus() | Out-Null
+        $null = $service.InstallProductKey($key)
+        $null = $service.RefreshLicenseStatus()
         $finished = $true
       }Else{
-        Write-Error 'Key was typed incorrectly please try again.'
+        Write-Warning -Message 'Key was typed incorrectly please try again.'
       
       }
     }While($finished = $false )
@@ -128,54 +129,54 @@ Function Test-WinActivation{
 }#End Test-WinActivation
 Function Activate-Office{
   $finished = $false
-  [string]$response = Read-Host "Do you need to activate Office? `n Y/N"
+  [string]$response = Read-Host -Prompt "Do you need to activate Office? `n Y/N"
   if($response -eq 'Y' -Or $response -eq 'y'){
     $name = $env:COMPUTERNAME
     $key = Read-Host -Prompt "Please enter Office activation key in form XXXX-XXXX-XXXX-XXXX `n"
     $key = $key.Trim()
-    if(Check-Key $key){
+    if(Check-Key -key $key){
       Write-Output -InputObject 'Attempting to activte Office.'
       $service = Get-wmiobject -class OfficeSoftwareProtectionService -ComputerName $name 
-      $service.InstallProductKey($key) | Out-Null
-      cscript "C:\Program Files\Microsoft Office\Office14\OSPP.vbs" /act
+      $null = $service.InstallProductKey($key)
+      cscript 'C:\Program Files\Microsoft Office\Office14\OSPP.vbs' /act
       $finished = $true
     }Else{
-      Write-Error 'Key as typed incorrectly please try again.'
+      Write-Error -Message 'Key as typed incorrectly please try again.'
 
     }
   }
 }#End Activate-Office
 Function Test-OfficeActivation{
-C:\Windows\System32\cscript.exe 'C:\Program Files (x86)\Microsoft Office\Office15\OSPP.VBS' /dstatus | Out-File $env:temp\actstat.txt
+C:\Windows\System32\cscript.exe 'C:\Program Files (x86)\Microsoft Office\Office15\OSPP.VBS' /dstatus | Out-File -FilePath $env:temp\actstat.txt
  
-$ActivationStatus = $($Things = $(Get-Content $env:temp\actstat.txt -raw) `
-                            -replace ":"," =" `
-                            -split "---------------------------------------" `
-                            -notmatch "---Processing--------------------------" `
-                            -notmatch "---Exiting-----------------------------"
+$ActivationStatus = $($Things = $(Get-Content -Path $env:temp\actstat.txt -ReadCount -raw) `
+                            -replace ':',' =' `
+                            -split '---------------------------------------' `
+                            -notmatch '---Processing--------------------------' `
+                            -notmatch '---Exiting-----------------------------'
                        $Things | ForEach-Object {
                        $Props = ConvertFrom-StringData -StringData ($_ -replace '\n-\s+')
-                       New-Object psobject -Property $Props  | Select-Object "SKU ID", "LICENSE NAME", "LICENSE DESCRIPTION", "LICENSE STATUS"
+                       New-Object -TypeName psobject -Property $Props  | Select-Object -Property 'SKU ID', 'LICENSE NAME', 'LICENSE DESCRIPTION', 'LICENSE STATUS'
         })
  
-$Var = "Office Activated "
+$Var = 'Office Activated '
 for ($i=0; $i -le $ActivationStatus.Count-2; $i++) {
-    if ($ActivationStatus[$i]."LICENSE STATUS" -eq "---LICENSED---") {
-        $Var = $Var + "OK "
+    if ($ActivationStatus[$i].'LICENSE STATUS' -eq '---LICENSED---') {
+        $Var = $Var + 'OK '
         }
  
     else {
-        $Var = $Var + "Bad "
+        $Var = $Var + 'Bad '
         }
         }
  
-If ($Var -like "*Bad*") {
+If ($Var -like '*Bad*') {
  
-    echo "Office Not Activated"
+    Write-Warning -Message 'Office Not Activated'
 }
 else
 {
-    echo "Office Activated"
+    Write-Output -InputObject 'Office Activated'
 }
 
 
@@ -192,7 +193,7 @@ Function Read-ConfigFile {
 
     #Create a drive with the FileServer
     Try{
-        New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds | Out-Null
+        $null = New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\currentscript -Credential $creds
     }Catch{
         Write-Output -InputObject 'Failed to Contact FileServer to update QA-Script please contact workshop manager.'
     }
@@ -205,7 +206,7 @@ Function Read-ConfigFile {
     }
 
     #Cleanup
-    Remove-PSDrive -Name temp
+     Remove-PSDrive -Name temp
 }#End Read-ConfigFile
 Function Get-Software {
     Param([Parameter(Mandatory=$true,HelpMessage='A Comma Seperated list of Softwares to search for.')]
@@ -291,12 +292,8 @@ Function New-LogFile{
     $script:reportFilePath = "$env:Public\Desktop\$($env:computername)-QA_Report.txt"
     
     #Populate System information as variables
-    [string]$Model = WMIC ComputerSystem Get Model | Out-String
-    $Model = $Model.Substring(5)
-    $Model = $Model.Trim()
-    [string]$Manufacturer = WMIC ComputerSystem Get Manufacturer | Out-String
-    $Manufacturer = $Manufacturer.Substring(12)
-    $Manufacturer = $Manufacturer.Trim()
+    $Model = (Get-WmiObject -Class win32_computersystem).Model
+    $Manufacturer = (Get-WmiObject -Class win32_computersystem).Manufacturer
 
     #Fetch date report was run
     $today = Get-Date
@@ -307,7 +304,8 @@ Function New-LogFile{
   }
 
   #Format report and print strings.
-  Add-Content -Path $reportFilePath -Value 'Computer Quality Assurance script by Mitchell Beare.'
+  Add-Content -Path $reportFilePath -Value 'Computer Quality Assurance Script'
+  Add-Content -Path $reportFilePath -Value "Author Mitchell Beare. `n"
   Add-Content -Path $reportFilePath -Value "Report Created On: $today`r"
   Add-Content -Path $reportFilePath -Value "QA Report For Computer: $env:computername`r`n"
   Add-Content -Path $reportFilePath -Value "==============================================================================`r`n"
@@ -321,12 +319,12 @@ Function Write-Log {
 }#End Write-Log
 Function Get-RAM{
     try{
-      $ram = Get-Ciminstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |Select-Object -ExpandProperty Sum 
+      $ram = (Get-WmiObject -Class win32_pysicalMemory).capacity
       }catch{
         Write-Warning -Message 'Failed to Retrieve RAM, Please check for fault.'
         Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
       }
-    $ram = $ram/1024/1024/1024
+    $ram = $ram/1073741824
     $ram = [Math]::Round($ram)
     Write-log -text "There is $($ram)GB of RAM installed on this machine `n"
 }#End Get-Ram
@@ -426,12 +424,12 @@ Function Send-Report{
     $creds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $secureStringPwd
     Try{
         if(-not(Get-PSDrive | Where-Object Name -match temp)){
-          New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
+          $null = New-PSDrive -Name temp -PSProvider FileSystem -Root \\192.168.1.18\qa-report -Credential $creds
         }
         Copy-Item -Path $reportFilePath -Destination temp:\
         Remove-PSDrive -Name temp
     }Catch{
-        Write-Error -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
+        Write-Warning -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
 Function Test-Network{
@@ -538,12 +536,12 @@ Test-DeviceDriver
 if($script:failedQA -ne $true){
   Activate-Windows
   if(Test-WinActivation){
-    Write-Output 'Windows successfully activated.'
-    Write-Log 'Windows is successfully activated.'
+    Write-Output -InputObject 'Windows successfully activated.'
+    Write-Log -text 'Windows is successfully activated.'
   }Else{
-    Write-Output 'Windows failed to automatically activate, please activate manually'
-    Write-Log 'Windows failed to automatically activated, promtped QA technician to activate.'
-    Start-Process ms-settings:activation
+    Write-Output -InputObject 'Windows failed to automatically activate, please activate manually'
+    Write-Log -text 'Windows failed to automatically activated, promtped QA technician to activate.'
+    Start-Process -FilePath ms-settings:activation
   }
   Activate-Office
 }
@@ -564,9 +562,8 @@ Read-Host -Prompt 'QA Complete Computer will now Restart.'
 #Self Removal, must always be last line.
 $action = New-ScheduledTaskAction -Execute Powershell.exe -Argument "Remove-Item 'C:\Users\User\Desktop\Automated-QA*' -Force"
 $setting = New-ScheduledTaskSettingsSet -Priority 5 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -StartWhenAvailable -WakeToRun
-$Time = Get-Date
-$Time = $Time.AddSeconds(7)
+$Time = (Get-Date).AddSeconds(7)
 $trigger = New-ScheduledTaskTrigger -At $Time -Once 
 $User = "$env:USERDOMAIN\$env:USERNAME"
-Register-ScheduledTask -TaskName 'Script Removal' -User $User -Action $action -Trigger $trigger -Settings $setting
+Register-ScheduledTask -TaskName 'QA Removal' -User $User -Action $action -Trigger $trigger -Settings $setting
 Restart-Computer -Force

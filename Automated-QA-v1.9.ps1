@@ -9,7 +9,7 @@
 #>
 
 #Mark: Iniatialise
-$ErrorActionPreference = 'Inquire'
+$ErrorActionPreference = 'SilentlyContinue'
 
 #Mark: API Connections
 Function Connect-NativeHelperType{
@@ -88,7 +88,26 @@ Connect-NativeHelperType
 Connect-AudoController
 
 #Mark: Functions
+Function Read-Key{
+    Param($Prompt)
+    Write-Output $Prompt
+    $activationlength = 24
+    [string]$input 
 
+    Do{
+        $input += [Console]::ReadKey() | Select-Object -ExpandProperty KeyChar | Out-String
+        if($input.Length%5 -eq 0 ){
+            [console]::Write('-')
+        }
+    }While($input.Length -le $activationlength)
+
+    foreach($letter in $input){
+        [string]$key = $key + $letter
+        $key = $key.Trim()
+    }
+    $key = $key -replace '(.....(?!$))','$1-'
+    Return $key
+}#End Read-Key
 Function Check-Key{
   [CmdletBinding()]
   Param([String]$key)
@@ -97,14 +116,14 @@ Function Check-Key{
   }Else{
     Return $false
   }
-}
+}#Check-Key
 Function Activate-Windows{
   $finished = $false
   [string]$response = Read-Host -Prompt "Do you need to activate Windows? `n Y/N"
   if($response -eq 'Y' -Or $response -eq 'y'){
     Do{
       $name = $env:COMPUTERNAME
-      $key = Read-Host -Prompt "Please enter Windows activation key in form XXXX-XXXX-XXXX-XXXX `n"
+      $key = Read-Key -Prompt "Please enter Windows activation key in form XXXX-XXXX-XXXX-XXXX `n"
       $key = $key.Trim()
       if(Check-key -key $key){
         Write-Output -InputObject 'Attempting to activte windows.'
@@ -132,7 +151,7 @@ Function Activate-Office{
   [string]$response = Read-Host -Prompt "Do you need to activate Office? `n Y/N"
   if($response -eq 'Y' -Or $response -eq 'y'){
     $name = $env:COMPUTERNAME
-    $key = Read-Host -Prompt "Please enter Office activation key in form XXXX-XXXX-XXXX-XXXX `n"
+    $key = Read-Key -Prompt "Please enter Office activation key in form XXXX-XXXX-XXXX-XXXX `n"
     $key = $key.Trim()
     if(Check-Key -key $key){
       Write-Output -InputObject 'Attempting to activte Office.'
@@ -150,33 +169,33 @@ Function Test-OfficeActivation{
 C:\Windows\System32\cscript.exe 'C:\Program Files (x86)\Microsoft Office\Office15\OSPP.VBS' /dstatus | Out-File -FilePath $env:temp\actstat.txt
  
 $ActivationStatus = $($Things = $(Get-Content -Path $env:temp\actstat.txt -ReadCount -raw) `
-                            -replace ':'," =" `
-                            -split "---------------------------------------" `
-                            -notmatch "---Processing--------------------------" `
-                            -notmatch "---Exiting-----------------------------"
+                            -replace ':',' =' `
+                            -split '---------------------------------------' `
+                            -notmatch '---Processing--------------------------' `
+                            -notmatch '---Exiting-----------------------------'
                        $Things | ForEach-Object {
                        $Props = ConvertFrom-StringData -StringData ($_ -replace '\n-\s+')
-                       New-Object -TypeName psobject -Property $Props  | Select-Object -Property "SKU ID", "LICENSE NAME", "LICENSE DESCRIPTION", "LICENSE STATUS"
+                       New-Object -TypeName psobject -Property $Props  | Select-Object -Property 'SKU ID', 'LICENSE NAME', 'LICENSE DESCRIPTION', 'LICENSE STATUS'
         })
  
-$Var = "Office Activated "
+$Var = 'Office Activated '
 for ($i=0; $i -le $ActivationStatus.Count-2; $i++) {
-    if ($ActivationStatus[$i]."LICENSE STATUS" -eq "---LICENSED---") {
-        $Var = $Var + "OK "
+    if ($ActivationStatus[$i].'LICENSE STATUS' -eq '---LICENSED---') {
+        $Var = $Var + 'OK '
         }
  
     else {
-        $Var = $Var + "Bad "
+        $Var = $Var + 'Bad '
         }
         }
  
-If ($Var -like "*Bad*") {
+If ($Var -like '*Bad*') {
  
-    Write-Warning -Message "Office Not Activated"
+    Write-Warning -Message 'Office Not Activated'
 }
 else
 {
-    Write-Output -InputObject "Office Activated"
+    Write-Output -InputObject 'Office Activated'
 }
 
 
@@ -324,9 +343,15 @@ Function Get-RAM{
         Write-Warning -Message 'Failed to Retrieve RAM, Please check for fault.'
         Write-Log -text 'Failed to Retrieve RAM, please check for fault.'
       }
-    $ram = $ram/1073741824
-    $ram = [Math]::Round($ram)
-    Write-log -text "There is $($ram)GB of RAM installed on this machine `n"
+    $ramtotal = 0
+    $i = 0
+    foreach($int in $ram){
+        $i += 1
+        $ramtotal += $ram[$i]
+    }
+    $ramtotal = $ramtotal/1073741824
+    $ramtotal = [Math]::Round($ramtotal)
+    Write-log -text "There is $($ramtotal)GB of RAM installed on this machine `n"
 }#End Get-Ram
 Function Test-Keyboard{
   $teststring ='The quick brown fox jumps over the lazy dog. 1234567890'
@@ -429,7 +454,7 @@ Function Send-Report{
         Copy-Item -Path $reportFilePath -Destination temp:\
         Remove-PSDrive -Name temp
     }Catch{
-        Write-Error -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
+        Write-Warning -InputObject 'Failed to Contact Server to save QA-Report please contact workshop manager.'
     }
 }#End Send-Report
 Function Test-Network{
